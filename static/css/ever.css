@@ -1,0 +1,251 @@
+/* ================================================================
+   EVER 2026 – Styles principaux
+   Palette : bleu IFOP #10218b, blanc, gris clair
+   ================================================================ */
+
+:root {
+  --ifop-blue:    #10218b;
+  --ifop-blue-dk: #0b1660;
+  --ifop-blue-lt: #d0d8f5;
+  --ifop-accent:  #3a56d4;
+  --row-alt:      #f0f3fc;
+  --row-ok:       #d4edda;
+  --row-ok-text:  #155724;
+  --header-h:     56px;
+}
+
+/* ---- Reset / Base ---- */
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 0.875rem;
+  background: #f4f6fb;
+  color: #212529;
+}
+
+/* ---- Header ---- */
+.ever-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  height: var(--header-h);
+  background: var(--ifop-blue);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+}
+
+.ever-title {
+  font-size: 1rem;
+  letter-spacing: 0.03em;
+  color: #fff;
+}
+
+.btn-header {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  border-radius: 6px;
+  padding: 4px 10px;
+  transition: background 0.15s;
+}
+.btn-header:hover {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+}
+.btn-header.active {
+  background: rgba(255,255,255,0.25);
+  border-color: rgba(255,255,255,0.7);
+  color: #fff;
+}
+
+.ever-user-info { font-size: 0.8rem; color: rgba(255,255,255,0.9); }
+.ever-clock { font-size: 0.78rem; color: rgba(255,255,255,0.7); }
+
+/* ---- Main content ---- */
+.ever-main {
+  min-height: calc(100vh - var(--header-h));
+}
+
+/* ---- Loading overlay ---- */
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255,255,255,0.6);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#loading-overlay.d-none { display: none !important; }
+.spinner-wrapper { text-align: center; }
+
+/* ---- Filtres / toolbar ---- */
+.ever-filters {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.ever-filters .filter-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+}
+.ever-filters label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6c757d;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ever-filters select,
+.ever-filters input[type="date"] {
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background: #fff;
+}
+.ever-filters select:focus,
+.ever-filters input[type="date"]:focus {
+  outline: none;
+  border-color: var(--ifop-accent);
+  box-shadow: 0 0 0 2px rgba(58,86,212,0.15);
+}
+
+/* ---- Tables de suivi ---- */
+.ever-table-wrapper {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ever-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.ever-table thead th {
+  background: var(--ifop-blue);
+  color: #fff;
+  padding: 8px 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-right: 1px solid rgba(255,255,255,0.15);
+}
+.ever-table thead th:last-child { border-right: none; }
+
+.ever-table tbody tr { border-bottom: 1px solid #e9ecef; }
+.ever-table tbody tr:hover { background: #eef1fb; }
+
+.ever-table td {
+  padding: 6px 10px;
+  vertical-align: middle;
+}
+
+/* Lignes alternées pour les vacations détail */
+.row-vacation { background: var(--row-alt); }
+
+/* Ligne totale vol */
+.row-total-vol {
+  background: var(--ifop-blue-lt);
+  font-weight: 600;
+  border-top: 2px solid var(--ifop-blue);
+}
+
+/* Ligne totale aéroport / site */
+.row-total-site {
+  background: var(--ifop-blue);
+  color: #fff;
+  font-weight: 700;
+}
+
+/* Ligne complétée (objectif atteint) */
+.row-complete {
+  background: var(--row-ok) !important;
+  color: var(--row-ok-text);
+}
+
+/* Cellule taux */
+.cell-rate {
+  font-weight: 600;
+}
+.cell-rate.good  { color: #155724; }
+.cell-rate.mid   { color: #856404; }
+.cell-rate.bad   { color: #842029; }
+
+/* Cellule code enquêteur (police monospace) */
+.cell-code { font-family: 'Consolas', monospace; font-size: 0.78rem; }
+
+/* Icône commentaire */
+.btn-comment {
+  background: none;
+  border: none;
+  color: var(--ifop-accent);
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 1rem;
+}
+.btn-comment:hover { color: var(--ifop-blue); }
+.btn-comment.has-comment { color: #e67e22; }
+
+/* ---- Affectation ---- */
+.row-modifiable { cursor: pointer; }
+.row-modifiable:hover { background: #eef1fb !important; }
+
+.affectation-select {
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  max-width: 180px;
+}
+.affectation-select:disabled { background: #e9ecef; cursor: not-allowed; }
+
+/* Popup détail vacation (hors aéroport) */
+.vacation-detail-popup {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+/* ---- Login ---- */
+.login-card {
+  max-width: 400px;
+  margin: 80px auto;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(16,33,139,0.18);
+  overflow: hidden;
+}
+.login-header {
+  background: var(--ifop-blue);
+  color: #fff;
+  padding: 2rem;
+  text-align: center;
+}
+.login-header h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+.login-header p  { font-size: 0.85rem; opacity: 0.8; margin: 0; }
+.login-body { padding: 2rem; background: #fff; }
+
+/* ---- Responsive ---- */
+.ever-table-scroll {
+  overflow-x: auto;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+/* ================================================================ */

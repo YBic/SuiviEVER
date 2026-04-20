@@ -1,0 +1,104 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Suivi Hors Aéroport{% endblock %}
+{% block page_title %}Suivi Hors Aéroport{% endblock %}
+
+{% block content %}
+
+<!-- ===== FILTRES ===== -->
+<div class="ever-filters">
+  <div class="filter-group">
+    <label for="filter-date">Date</label>
+    <input type="date" id="filter-date" value="{{ today|date:'Y-m-d' }}">
+  </div>
+
+  <div class="filter-group">
+    <label for="filter-site">Site / Zone</label>
+    <select id="filter-site">
+      <option value="">— Tous —</option>
+    </select>
+  </div>
+
+  {% if can_filter_enqueteur %}
+  <div class="filter-group">
+    <label for="filter-enqueteur">Enquêteur</label>
+    <select id="filter-enqueteur">
+      <option value="">— Tous —</option>
+    </select>
+  </div>
+  {% endif %}
+
+  <div class="filter-group" style="justify-content:flex-end;">
+    <button id="btn-refresh-data" class="btn btn-primary btn-sm">
+      <i class="bi bi-arrow-clockwise me-1"></i>Actualiser
+    </button>
+  </div>
+</div>
+
+<!-- ===== TABLEAU DE SUIVI ===== -->
+<div class="ever-table-wrapper">
+  <div class="ever-table-scroll">
+    <table class="ever-table" id="table-suivi-hors-aeroport">
+      <thead>
+        <tr>
+          <th>Site d'enquête</th>
+          <th>Type</th>
+          <th>N° Vacation</th>
+          <th>Enquêteur</th>
+          <th class="text-end">Objectif</th>
+          <th class="text-end">100% complétés</th>
+          <th class="text-end">Taux réal.</th>
+          <th class="text-end">Recrutés</th>
+          <th class="text-end">Q. valides</th>
+          <th class="text-end">Abandons</th>
+          <th class="text-end">À recruter</th>
+          <th class="text-center">Détail</th>
+          {% if can_comment %}
+          <th class="text-center">Cmnt</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody id="tbody-hors-aeroport">
+        <tr>
+          <td colspan="13" class="text-center text-muted py-4">
+            <i class="bi bi-hourglass-split me-2"></i>Sélectionnez une date pour charger les données…
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== PANEL DÉTAIL VACATION MULTI-SITES ===== -->
+<div id="panel-detail-vacation" class="vacation-detail-popup d-none mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <strong><i class="bi bi-list-ul me-1"></i>Détail des sites – Vacation <span id="detail-vacation-num"></span></strong>
+    <button class="btn btn-sm btn-outline-secondary" id="btn-close-detail">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+  <table class="ever-table" id="table-detail-sites">
+    <thead>
+      <tr>
+        <th>Site</th>
+        <th>Type</th>
+        <th class="text-end">100% complétés</th>
+        <th class="text-end">Recrutés</th>
+        <th class="text-end">Q. valides</th>
+        <th class="text-end">Abandons</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-detail-sites"></tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const CAN_COMMENT = {{ can_comment|yesno:"true,false" }};
+  const CAN_FILTER_ENQUETEUR = {{ can_filter_enqueteur|yesno:"true,false" }};
+</script>
+<script src="{% static 'js/suivi_hors_aeroport.js' %}"></script>
+{% endblock %}
