@@ -1,0 +1,33 @@
+services:
+  web:
+    image: localhost:5000/ever-suivi:latest   # registry interne IFOP
+    restart: unless-stopped
+    environment:
+      # ── Django ──────────────────────────────────────────────────────────────
+      SECRET_KEY: "${SECRET_KEY}"
+      DEBUG: "False"
+      ALLOWED_HOSTS: "ever.ifop.com"
+      # ── Base de données SQL Server ───────────────────────────────────────────
+      DB_HOST: "${DB_HOST}"          # ex: 10.10.1.27\MSSQLIFOPGE
+      DB_NAME: "${DB_NAME}"
+      DB_USER: "${DB_USER}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      # ── Mots de passe applicatifs ────────────────────────────────────────────
+      FIRST_LOGIN_PASSWORD: "${FIRST_LOGIN_PASSWORD}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      # ── Sessions (dossier monté en volume) ───────────────────────────────────
+      SESSION_FILE_PATH: "/app/sessions"
+    volumes:
+      - ever_logs:/app/logs
+      - ever_sessions:/app/sessions
+    networks:
+      - proxy
+
+volumes:
+  ever_logs:
+  ever_sessions:
+
+networks:
+  proxy:
+    external: true
+    name: nginx-proxy-manager_default   # réseau Docker de NPM (à vérifier)

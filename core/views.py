@@ -5,6 +5,7 @@ les données sont chargées dynamiquement via les endpoints /api/*.
 """
 import json
 from datetime import date
+
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
@@ -16,6 +17,24 @@ from . import db
 
 
 # ---------------------------------------------------------------------------
+# Helpers de session
+# ---------------------------------------------------------------------------
+
+def _session_ctx(request) -> dict:
+    """
+    Retourne les valeurs de session fréquemment utilisées dans les vues API.
+    Centralise l'extraction pour éviter la répétition.
+    """
+    return {
+        'role':              request.session.get('user_role', 'ENQUETEUR'),
+        'user_id':           request.session.get('user_id'),
+        'user_login':        request.session.get('user_login'),
+        'matricule':         request.session.get('user_matricule'),
+        'id_societe_terrain': request.session.get('user_id_societe_terrain'),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Pages principales
 # ---------------------------------------------------------------------------
 
@@ -24,11 +43,11 @@ def suivi_aeroport(request):
     """Page de suivi des vacations en aéroport."""
     role = request.session.get('user_role', '')
     context = {
-        'page':                  'suivi_aeroport',
-        'can_filter_enqueteur':  has_right(role, 'filtrer_enqueteur'),
-        'can_comment':           has_right(role, 'commentaires'),
-        'can_affectation':       has_right(role, 'affectation'),
-        'today':                 date.today(),
+        'page':                 'suivi_aeroport',
+        'can_filter_enqueteur': has_right(role, 'filtrer_enqueteur'),
+        'can_comment':          has_right(role, 'commentaires'),
+        'can_affectation':      has_right(role, 'affectation'),
+        'today':                date.today(),
     }
     return render(request, 'core/suivi_aeroport.html', context)
 
@@ -38,11 +57,11 @@ def suivi_hors_aeroport(request):
     """Page de suivi des vacations hors aéroport."""
     role = request.session.get('user_role', '')
     context = {
-        'page':                  'suivi_hors_aeroport',
-        'can_filter_enqueteur':  has_right(role, 'filtrer_enqueteur'),
-        'can_comment':           has_right(role, 'commentaires'),
-        'can_affectation':       has_right(role, 'affectation'),
-        'today':                 date.today(),
+        'page':                 'suivi_hors_aeroport',
+        'can_filter_enqueteur': has_right(role, 'filtrer_enqueteur'),
+        'can_comment':          has_right(role, 'commentaires'),
+        'can_affectation':      has_right(role, 'affectation'),
+        'today':                date.today(),
     }
     return render(request, 'core/suivi_hors_aeroport.html', context)
 
@@ -74,10 +93,14 @@ def api_periodes(request):
 @login_required
 @require_GET
 def api_aeroports(request):
+    ctx           = _session_ctx(request)
     date_vacation = request.GET.get('date', date.today().isoformat())
-    matricule = request.session.get('user_matricule') if request.session.get('user_role') == 'ENQUETEUR' else None
     try:
-        data = db.get_aeroports(date_vacation, matricule)
+        data = db.get_aeroports(
+            date_vacation,
+            user_login=ctx['user_login'],
+            id_societe_terrain=ctx['id_societe_terrain'],
+        )
         return JsonResponse({'status': 'ok', 'data': data})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -86,8 +109,9 @@ def api_aeroports(request):
 @login_required
 @require_GET
 def api_sites(request):
+    ctx           = _session_ctx(request)
     date_vacation = request.GET.get('date', date.today().isoformat())
-    matricule = request.session.get('user_matricule') if request.session.get('user_role') == 'ENQUETEUR' else None
+    matricule     = ctx['matricule'] if ctx['role'] == 'ENQUETEUR' else None
     try:
         data = db.get_sites(date_vacation, matricule)
         return JsonResponse({'status': 'ok', 'data': data})
@@ -98,10 +122,15 @@ def api_sites(request):
 @login_required
 @require_GET
 def api_enqueteurs_aeroport(request):
+    ctx           = _session_ctx(request)
     date_vacation = request.GET.get('date', date.today().isoformat())
     id_aeroport   = request.GET.get('id_aeroport') or None
     try:
-        data = db.get_enqueteurs_aeroport(date_vacation, id_aeroport)
+        data = db.get_enqueteurs_aeroport(
+            date_vacation,
+            id_aeroport=id_aeroport,
+            id_societe_terrain=ctx['id_societe_terrain'],
+        )
         return JsonResponse({'status': 'ok', 'data': data})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -110,6 +139,7 @@ def api_enqueteurs_aeroport(request):
 @login_required
 @require_GET
 def api_enqueteurs_site(request):
+    ctx           = _session_ctx(request)
     date_vacation = request.GET.get('date', date.today().isoformat())
     id_site       = request.GET.get('id_site') or None
     try:
@@ -126,18 +156,25 @@ def api_enqueteurs_site(request):
 @login_required
 @require_GET
 def api_suivi_aeroport(request):
+    ctx           = _session_ctx(request)
     date_vacation = request.GET.get('date', date.today().isoformat())
     id_aeroport   = request.GET.get('id_aeroport') or None
     id_personne   = request.GET.get('id_personne') or None
     id_type_vol   = request.GET.get('id_type_vol') or None
-    role          = request.session.get('user_role', 'ENQUETEUR')
 
     # Un enquêteur ne voit que ses propres vacations
-    if role == 'ENQUETEUR':
-        id_personne = request.session.get('user_id')
+    if ctx['role'] == 'ENQUETEUR':
+        id_personne = ctx['user_id']
 
     try:
-        rows = db.get_suivi_aeroport(date_vacation, id_aeroport, id_personne, id_type_vol, role)
+        rows = db.get_suivi_aeroport(
+            date_vacation,
+            user_login=ctx['user_login'],
+            id_societe_terrain=ctx['id_societe_terrain'],
+            id_aeroport=id_aeroport,
+            id_type_vol=id_type_vol,
+            id_personne=id_personne,
+        )
         return JsonResponse({'status': 'ok', 'data': rows})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -146,16 +183,21 @@ def api_suivi_aeroport(request):
 @login_required
 @require_GET
 def api_suivi_hors_aeroport(request):
+    ctx           = _session_ctx(request)
     date_vacation = request.GET.get('date', date.today().isoformat())
     id_site       = request.GET.get('id_site') or None
     id_personne   = request.GET.get('id_personne') or None
-    role          = request.session.get('user_role', 'ENQUETEUR')
 
-    if role == 'ENQUETEUR':
-        id_personne = request.session.get('user_id')
+    if ctx['role'] == 'ENQUETEUR':
+        id_personne = ctx['user_id']
 
     try:
-        rows = db.get_suivi_hors_aeroport(date_vacation, id_site, id_personne, role)
+        rows = db.get_suivi_hors_aeroport(
+            date_vacation,
+            id_site=id_site,
+            id_personne=id_personne,
+            id_societe_terrain=ctx['id_societe_terrain'],
+        )
         return JsonResponse({'status': 'ok', 'data': rows})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -184,13 +226,18 @@ def api_vacations_affectation(request):
     if not has_right(request.session.get('user_role', ''), 'affectation'):
         return JsonResponse({'status': 'error', 'message': 'Accès refusé'}, status=403)
 
+    ctx           = _session_ctx(request)
     date_vacation = request.GET.get('date', date.today().isoformat())
     id_aeroport   = request.GET.get('id_aeroport') or None
-    id_site       = request.GET.get('id_site') or None
     id_personne   = request.GET.get('id_personne') or None
 
     try:
-        rows = db.get_vacations_affectation(date_vacation, id_aeroport, id_site, id_personne)
+        rows = db.get_vacations_affectation(
+            date_vacation,
+            id_aeroport=id_aeroport,
+            id_personne=id_personne,
+            id_societe_terrain=ctx['id_societe_terrain'],
+        )
         return JsonResponse({'status': 'ok', 'data': rows})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -201,8 +248,10 @@ def api_vacations_affectation(request):
 def api_tous_enqueteurs(request):
     if not has_right(request.session.get('user_role', ''), 'affectation'):
         return JsonResponse({'status': 'error', 'message': 'Accès refusé'}, status=403)
+
+    ctx = _session_ctx(request)
     try:
-        data = db.get_tous_enqueteurs()
+        data = db.get_tous_enqueteurs(id_societe_terrain=ctx['id_societe_terrain'])
         return JsonResponse({'status': 'ok', 'data': data})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -224,7 +273,12 @@ def api_set_affectation(request):
     except (KeyError, ValueError, json.JSONDecodeError):
         return JsonResponse({'status': 'error', 'message': 'Paramètres invalides'}, status=400)
 
-    ok = db.set_affectation(id_vacation, rang, id_personne, request.session['user_id'])
+    ok = db.set_affectation(
+        id_vacation,
+        rang,
+        id_personne,
+        matricule_connexion=request.session.get('user_matricule'),
+    )
     if ok:
         return JsonResponse({'status': 'ok'})
     return JsonResponse({'status': 'error', 'message': "Erreur lors de l'affectation"}, status=500)
@@ -249,7 +303,10 @@ def api_update_commentaire(request):
         return JsonResponse({'status': 'error', 'message': 'Paramètres invalides'}, status=400)
 
     ok = db.update_commentaire(
-        id_vacation, commentaire_avant, commentaire_apres, request.session['user_id']
+        id_vacation,
+        commentaire_avant,
+        commentaire_apres,
+        matricule_connexion=request.session.get('user_matricule'),
     )
     if ok:
         return JsonResponse({'status': 'ok'})
