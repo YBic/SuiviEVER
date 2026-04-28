@@ -194,7 +194,7 @@ def api_suivi_hors_aeroport(request):
     try:
         rows = db.get_suivi_hors_aeroport(
             date_vacation,
-            id_site=id_site,
+            id_aeroport=id_site,   # provisoire : TVF expose @pID_Aeroport, pas @pID_Site
             id_personne=id_personne,
             id_societe_terrain=ctx['id_societe_terrain'],
         )
@@ -266,19 +266,15 @@ def api_set_affectation(request):
     try:
         body        = json.loads(request.body)
         id_vacation = int(body['id_vacation'])
-        rang        = int(body['rang'])
         id_personne = body.get('id_personne')
         if id_personne is not None:
             id_personne = int(id_personne)
+        # rang prévu par le CdC (ft_EVER_Set_Affectation) mais absent de la SP actuelle
+        # conservé dans le body pour ne pas casser le JS quand Philippe livrera la nouvelle SP
     except (KeyError, ValueError, json.JSONDecodeError):
         return JsonResponse({'status': 'error', 'message': 'Paramètres invalides'}, status=400)
 
-    ok = db.set_affectation(
-        id_vacation,
-        rang,
-        id_personne,
-        matricule_connexion=request.session.get('user_matricule'),
-    )
+    ok = db.set_affectation(id_vacation, id_personne)
     if ok:
         return JsonResponse({'status': 'ok'})
     return JsonResponse({'status': 'error', 'message': "Erreur lors de l'affectation"}, status=500)

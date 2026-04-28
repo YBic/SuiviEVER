@@ -136,6 +136,7 @@ def login_view(request):
     # result == AuthResult.OK
     logger.info("LOGIN_OK       login=%-20s ip=%s  role=%s", login, ip, user.get('Code_Role'))
     _build_session(request, user, login)
+    db.log_connexion(user.get('ID_Utilisateur'), 'LOGIN', ip)
     home = ROLE_HOME.get(user.get('Code_Role', ''), 'core:suivi_aeroport')
     return redirect(home)
 
@@ -183,6 +184,7 @@ def set_password_view(request):
     user = request.session.pop('pending_user', {})
     request.session.pop('pending_login', None)
     _build_session(request, user, login)
+    db.log_connexion(user.get('ID_Utilisateur'), 'LOGIN', ip)
 
     messages.success(request, "Mot de passe créé avec succès. Bienvenue !")
     home = ROLE_HOME.get(user.get('Code_Role', ''), 'core:suivi_aeroport')
@@ -195,8 +197,11 @@ def set_password_view(request):
 
 def logout_view(request):
     """Détruit la session et redirige vers /login/."""
-    login = request.session.get('user_login', '?')
-    ip    = _get_ip(request)
+    login        = request.session.get('user_login', '?')
+    user_id      = request.session.get('user_id')
+    ip           = _get_ip(request)
     logger.info("LOGOUT             login=%-20s ip=%s", login, ip)
+    if user_id:
+        db.log_connexion(user_id, 'LOGOUT', ip)
     request.session.flush()
     return redirect('accounts:login')

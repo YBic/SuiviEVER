@@ -151,22 +151,24 @@ def set_password(login: str, new_password: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Récupération du matricule enquêteur (pour les appels aux ft_EVER_Tableau_*)
+# Journalisation des connexions / déconnexions
 # ---------------------------------------------------------------------------
 
-def get_matricule_enqueteur(login: str) -> str | None:
+def log_connexion(id_utilisateur: int, action: str, ip: str | None = None) -> None:
     """
-    Retourne le matricule enquêteur (Base_Enqueteur_Matricule) lié au compte,
-    utilisé comme @pMatricule_Connexion dans les fonctions de suivi.
+    Appelle ft_EVER_Log_Connexion(@Id_Personne, @Action, @IP_Adresse).
+    Absorbe silencieusement toute erreur : un échec de log ne doit jamais
+    bloquer la navigation.
+
+    action : 'LOGIN' | 'LOGOUT'
     """
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT Base_Enqueteur_Matricule FROM dbo.Utilisateur WHERE Utilisateur_Login = ?",
-                (login,)
+                "EXEC dbo.ft_EVER_Log_Connexion ?,?,?",
+                (id_utilisateur, action, ip)
             )
-            row = cursor.fetchone()
-            return row[0] if row else None
-    except pyodbc.Error:
-        return None
+            conn.commit()
+    except Exception:
+        pass  # silencieux par spec

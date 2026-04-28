@@ -221,19 +221,28 @@ def get_suivi_aeroport(
 
 def get_suivi_hors_aeroport(
     date_vacation:      str,
-    id_site:            int | None = None,
+    id_aeroport:        int | None = None,
     id_personne:        int | None = None,
     id_societe_terrain: int | None = None,
 ) -> list[dict]:
     """
-    ft_Vacation_Enqueteur_Tdb_Suivi — signature à confirmer.
-    TODO: câbler une fois les paramètres validés.
+    ft_Vacation_Enqueteur_Tdb_Suivi(
+        @pID_Societe_Terrain   tinyint  NULL ok
+        @pID_Aeroport          smallint NULL ok  ← NB : paramètre aéroport, pas site
+        @pDate_Vacation_Debut  date
+        @pDate_Vacation_Fin    date
+        @pID_Personne          int      NULL ok
+    )
+    Note : la TVF expose @pID_Aeroport, pas @pID_Site.
+    Le CdC prévoit ft_EVER_Tableau_Suivi_Hors_Aeroport avec @pID_Site ;
+    à câbler dès que Philippe l'aura créé.
+    En attendant, id_aeroport=NULL retourne toutes les vacations (aéroport et hors aéroport).
     """
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT * FROM dbo.ft_Vacation_Enqueteur_Tdb_Suivi(?,?,?,?)",
-            (id_societe_terrain, date_vacation, id_site, id_personne)
+            "SELECT * FROM dbo.ft_Vacation_Enqueteur_Tdb_Suivi(?,?,?,?,?)",
+            (id_societe_terrain, id_aeroport, date_vacation, date_vacation, id_personne)
         )
         return _rows_to_dicts(cursor)
 
@@ -304,21 +313,25 @@ def get_tous_enqueteurs(id_societe_terrain: int | None = None) -> list[dict]:
 
 
 def set_affectation(
-    id_vacation:         int,
-    rang:                int,
-    id_personne:         int | None,
-    matricule_connexion: str | None,
+    id_vacation: int,
+    id_personne: int | None,
 ) -> bool:
     """
-    Prc_Vacation_Aeroport_Affectation
-    TODO: signature complète à confirmer avec Philippe.
+    Prc_Vacation_Aeroport_Affectation(
+        @pID_Vacation_Enqueteur  int
+        @pID_Personne            int   NULL = désaffectation
+        @pMode_Extranet          bit   = 1
+    )
+    Note : la SP n'expose pas de paramètre @Rang ni @Matricule_Connexion.
+    Le CdC prévoit ft_EVER_Set_Affectation avec @Rang et @Id_Personne_Acteur ;
+    à câbler dès que Philippe l'aura créé.
     """
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "EXEC dbo.Prc_Vacation_Aeroport_Affectation ?,?,?,?",
-                (id_vacation, id_personne, 1, matricule_connexion)
+                "EXEC dbo.Prc_Vacation_Aeroport_Affectation ?,?,?",
+                (id_vacation, id_personne, 1)
             )
             conn.commit()
         return True
