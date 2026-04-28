@@ -30,7 +30,10 @@ def get_connection():
         f"TrustServerCertificate={cfg['TrustServerCertificate']};"
     )
     if cfg.get('UID'):
-        conn_str += f"UID={cfg['UID']};PWD={cfg['PWD']};"
+        # Les accolades {} sont requises si le mot de passe contient des
+        # caractères spéciaux ODBC (;  {  }). On les applique systématiquement.
+        pwd = cfg['PWD'].replace('}', '}}')   # échappe les } internes
+        conn_str += f"UID={cfg['UID']};PWD={{{pwd}}};"
     else:
         conn_str += "Trusted_Connection=yes;"
     return pyodbc.connect(conn_str)
