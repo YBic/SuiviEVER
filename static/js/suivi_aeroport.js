@@ -4,6 +4,8 @@
 
 $(function () {
 
+  let lastRows = [];   // données brutes de la dernière réponse API (pour l'export)
+
   // ---- Chargement initial des listes ----
   loadAeroports();
   if (CAN_FILTER_ENQUETEUR) loadEnqueteurs();
@@ -76,11 +78,19 @@ $(function () {
     .done(function (resp) {
       if (resp.status !== 'ok') {
         showError(resp.message || 'Erreur lors du chargement.');
+        lastRows = [];
+        $('#btn-export-csv').prop('disabled', true);
         return;
       }
-      renderTable(resp.data);
+      lastRows = resp.data || [];
+      $('#btn-export-csv').prop('disabled', lastRows.length === 0);
+      renderTable(lastRows);
     })
-    .fail(function () { showError('Erreur réseau.'); })
+    .fail(function () {
+      showError('Erreur réseau.');
+      lastRows = [];
+      $('#btn-export-csv').prop('disabled', true);
+    })
     .always(hideSpinner);
   }
 
@@ -117,7 +127,7 @@ $(function () {
           $tbody.append(buildVacationRow(r));
         });
         // Total vol
-        $tbody.append(buildTotalRow('row-total-vol', `Total vol ${vol}`, flight.totals));
+        $tbody.append(buildTotalRow('row-total-vol', `Total vol <span class="cell-numvol">${escHtml(vol)}</span>`, flight.totals));
       });
       // Total aéroport
       $tbody.append(buildTotalRow('row-total-site', `TOTAL ${code} – ${airport.nom}`, airport.totals));
@@ -155,15 +165,15 @@ $(function () {
       : '';
 
     return `<tr class="row-vacation ${isComplete ? 'row-complete' : ''}">
-      <td>${escHtml(r.Code_Aeroport || '')}</td>
-      <td class="cell-code">${escHtml(r.Numero_Vacation || '')}</td>
-      <td>${escHtml(r.Libelle_Enqueteur || '')}</td>
-      <td>${escHtml(r.Code_Compagnie || '')} ${escHtml(r.Numero_Vol || '')}</td>
-      <td>${escHtml(r.Aeroport_Destination || '')}</td>
-      <td>${escHtml(r.Heure_Depart || '')}</td>
+      <td class="cell-aeroport text-center">${escHtml(r.Code_Aeroport || '')}</td>
+      <td class="cell-code text-center">${escHtml(r.Numero_Vacation || '')}</td>
+      <td title="${escHtml(r.Libelle_Enqueteur || '')}"><div class="cell-clip">${escHtml(r.Libelle_Enqueteur || '')}</div></td>
+      <td class="cell-numvol text-center" title="${escHtml((r.Nom_Compagnie ? r.Nom_Compagnie + ' · ' : '') + (r.Numero_Vol || ''))}">${escHtml(r.Numero_Vol || '')}</td>
+      <td title="${escHtml(r.Aeroport_Destination || '')}"><div class="cell-clip">${escHtml(r.Aeroport_Destination || '')}</div></td>
+      <td class="text-center">${escHtml(r.Heure_Depart || '')}</td>
       <td class="text-end">${objectif || '—'}</td>
       <td class="text-end">${completes}</td>
-      <td class="text-end cell-rate ${tauxCls}">${taux}%</td>
+      <td class="cell-rate"><span class="rate-pill ${tauxCls}">${taux}%</span></td>
       <td class="text-end">${toInt(r.Recrutes)}</td>
       <td class="text-end">${toInt(r.Questionnaires_Valides)}</td>
       <td class="text-end">${toInt(r.Abandons)}</td>
@@ -187,6 +197,63 @@ $(function () {
       ${CAN_COMMENT ? '<td></td>' : ''}
     </tr>`;
   }
+
+  // ---- Export CSV ----
+  $('#btn-export-csv').on('click', function () {
+    if (!lastRows || lastRows.length === 0) return;
+
+    const date = $('#filter-date').val() || 'export';
+
+    const headers = [
+      'Date', 'Aéroport', 'N° Vacation', 'Enquêteur',
+      'N° Vol', 'Compagnie', 'Destination', 'Heure départ',
+      'Objectif', '100% complétés', 'Taux réal. (%)',
+      'Recrutés', 'Q. valides', 'Abandons', 'À recruter',
+    ];
+
+    const csvRows = [headers.join(';')];
+
+    lastRows.forEach(function (r) {
+      const objectif  = toInt(r.Objectif);
+      const completes = toInt(r.Completes_100);
+      const taux = objectif > 0 ? Math.round((completes / objectif) * 100) : 0;
+
+      const row = [
+        date,
+        r.Code_Aeroport  || '',
+        r.Numero_Vacation || '',
+        r.Libelle_Enqueteur || '',
+        r.Numero_Vol     || '',
+        r.Nom_Compagnie  || '',
+        r.Aeroport_Destination || '',
+        r.Heure_Depart   || '',
+        objectif,
+        completes,
+        taux,
+        toInt(r.Recrutes),
+        toInt(r.Questionnaires_Valides),
+        toInt(r.Abandons),
+        Math.max(0, objectif - completes),
+      ].map(function (v) {
+        // Guillemets si le champ contient un séparateur ou des guillemets
+        const s = String(v);
+        return s.includes(';') || s.includes('"') || s.includes('\n')
+          ? '"' + s.replace(/"/g, '""') + '"'
+          : s;
+      });
+
+      csvRows.push(row.join(';'));
+    });
+
+    const bom  = '﻿';   // BOM UTF-8 pour Excel FR
+    const blob = new Blob([bom + csvRows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `suivi_aeroport_${date}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
 
   function showError(msg) {
     $('#tbody-aeroport').html(

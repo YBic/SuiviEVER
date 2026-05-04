@@ -130,7 +130,7 @@ $(function () {
       <td>${escHtml(r.Libelle_Enqueteur || '')}</td>
       <td class="text-end">${objectif || '—'}</td>
       <td class="text-end">${completes}</td>
-      <td class="text-end cell-rate ${tauxCls}">${taux}%</td>
+      <td class="cell-rate"><span class="rate-pill ${tauxCls}">${taux}%</span></td>
       <td class="text-end">${toInt(r.Recrutes)}</td>
       <td class="text-end">${toInt(r.Questionnaires_Valides)}</td>
       <td class="text-end">${toInt(r.Abandons)}</td>

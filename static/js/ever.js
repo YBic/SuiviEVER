@@ -3,6 +3,17 @@
  * Horloge, spinner, commentaires, mot de passe affectation
  */
 
+/* ---- Datepicker DD/MM/YYYY (Flatpickr) ---- */
+if (document.getElementById('filter-date')) {
+  flatpickr('#filter-date', {
+    locale:      'fr',
+    dateFormat:  'Y-m-d',    // valeur interne envoyée au serveur
+    altInput:    true,
+    altFormat:   'd/m/Y',    // affichage utilisateur
+    allowInput:  true,
+  });
+}
+
 /* ---- Horloge ---- */
 function updateClock() {
   const now = new Date();
@@ -56,6 +67,12 @@ function rateClass(pct) {
 function fmtRate(val, total) {
   if (!total || total === 0) return '—';
   return Math.round((val / total) * 100) + '%';
+}
+
+/* ---- Formatage date ISO → DD/MM/YYYY ---- */
+function fmtDate(iso) {
+  if (!iso || iso.length < 10) return iso || '';
+  return iso.substring(8, 10) + '/' + iso.substring(5, 7) + '/' + iso.substring(0, 4);
 }
 
 /* ================================================================

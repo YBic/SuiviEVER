@@ -54,7 +54,7 @@ def hash_password(password: str) -> str:
 
 def get_utilisateur(login: str) -> dict | None:
     """
-    Appelle ft_EVER_Liste_Utilisateur(@pUtilisateur_Login).
+    Appelle ft_EVER_Utilisateur(@pUtilisateur_Login).
     Retourne un dict ou None si le login n'existe pas.
 
     Colonnes retournées par la fonction :
@@ -67,7 +67,7 @@ def get_utilisateur(login: str) -> dict | None:
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT * FROM dbo.ft_EVER_Liste_Utilisateur(?)",
+                "SELECT * FROM dbo.ft_EVER_Utilisateur(?)",
                 (login,)
             )
             row = cursor.fetchone()

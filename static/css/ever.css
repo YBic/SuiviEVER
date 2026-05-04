@@ -22,45 +22,82 @@ body {
   color: #212529;
 }
 
-/* ---- Header ---- */
+/* ---- Boutons primaires en bleu IFOP ---- */
+.btn-primary {
+  --bs-btn-bg:            var(--ifop-blue);
+  --bs-btn-border-color:  var(--ifop-blue);
+  --bs-btn-hover-bg:      var(--ifop-blue-dk);
+  --bs-btn-hover-border-color: var(--ifop-blue-dk);
+  --bs-btn-active-bg:     var(--ifop-blue-dk);
+  --bs-btn-active-border-color: var(--ifop-blue-dk);
+  --bs-btn-focus-shadow-rgb: 16, 33, 139;
+}
+
+/* ================================================================
+   HEADER
+   ================================================================ */
 .ever-header {
   position: sticky;
   top: 0;
   z-index: 1000;
   height: var(--header-h);
-  background: var(--ifop-blue);
+  background: linear-gradient(135deg, var(--ifop-blue) 0%, #1a2fa8 100%);
   color: #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .ever-title {
   font-size: 1rem;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   color: #fff;
+  font-weight: 600;
+}
+
+/* Navigation — pills avec indicateur actif */
+.ever-nav {
+  display: flex;
+  gap: 4px;
+  align-items: center;
 }
 
 .btn-header {
   background: transparent;
-  border: 1px solid rgba(255,255,255,0.3);
-  color: #fff;
-  border-radius: 6px;
-  padding: 4px 10px;
-  transition: background 0.15s;
+  border: none;
+  color: rgba(255,255,255,0.65);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 1.05rem;
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+  line-height: 1;
 }
 .btn-header:hover {
-  background: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.12);
   color: #fff;
 }
 .btn-header.active {
-  background: rgba(255,255,255,0.25);
-  border-color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.2);
   color: #fff;
+  box-shadow: inset 0 -2px 0 #fff;
 }
 
-.ever-user-info { font-size: 0.8rem; color: rgba(255,255,255,0.9); }
-.ever-clock { font-size: 0.78rem; color: rgba(255,255,255,0.7); }
+/* Badge rôle coloré par famille */
+.role-badge { font-size: 0.7rem; letter-spacing: 0.02em; }
 
-/* ---- Main content ---- */
+.role-admin_ifop       { background: #1a1a1a !important; }
+.role-responsable_ifop { background: #2563eb !important; }
+.role-responsable_st   { background: #0891b2 !important; }
+.role-superviseur_ifop { background: #ea580c !important; }
+.role-superviseur_st   { background: #d97706 !important; color: #000 !important; }
+.role-enqueteur        { background: #16a34a !important; }
+.role-client           { background: #6b7280 !important; }
+
+.ever-user-info { font-size: 0.8rem; color: rgba(255,255,255,0.9); }
+.ever-clock { font-size: 0.78rem; color: rgba(255,255,255,0.6); letter-spacing: 0.03em; }
+
+/* ================================================================
+   MAIN
+   ================================================================ */
 .ever-main {
   min-height: calc(100vh - var(--header-h));
 }
@@ -69,7 +106,8 @@ body {
 #loading-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(2px);
   z-index: 9000;
   display: flex;
   align-items: center;
@@ -78,10 +116,13 @@ body {
 #loading-overlay.d-none { display: none !important; }
 .spinner-wrapper { text-align: center; }
 
-/* ---- Filtres / toolbar ---- */
+/* ================================================================
+   FILTRES / TOOLBAR
+   ================================================================ */
 .ever-filters {
   background: #fff;
   border: 1px solid #dee2e6;
+  border-left: 3px solid var(--ifop-blue);
   border-radius: 8px;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -89,6 +130,7 @@ body {
   flex-wrap: wrap;
   gap: 0.75rem;
   align-items: flex-end;
+  box-shadow: 0 1px 4px rgba(16,33,139,0.07);
 }
 
 .ever-filters .filter-group {
@@ -97,34 +139,38 @@ body {
   min-width: 150px;
 }
 .ever-filters label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #6c757d;
-  margin-bottom: 2px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ifop-blue);
+  margin-bottom: 3px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 .ever-filters select,
 .ever-filters input[type="date"] {
   font-size: 0.85rem;
-  padding: 4px 8px;
+  padding: 5px 8px;
   border: 1px solid #ced4da;
   border-radius: 6px;
   background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 .ever-filters select:focus,
 .ever-filters input[type="date"]:focus {
   outline: none;
   border-color: var(--ifop-accent);
-  box-shadow: 0 0 0 2px rgba(58,86,212,0.15);
+  box-shadow: 0 0 0 3px rgba(58,86,212,0.12);
 }
 
-/* ---- Tables de suivi ---- */
+/* ================================================================
+   TABLES DE SUIVI
+   ================================================================ */
 .ever-table-wrapper {
   background: #fff;
   border: 1px solid #dee2e6;
   border-radius: 8px;
   overflow: hidden;
+  box-shadow: 0 1px 6px rgba(16,33,139,0.06);
 }
 
 .ever-table {
@@ -134,34 +180,37 @@ body {
 }
 
 .ever-table thead th {
-  background: var(--ifop-blue);
+  background: linear-gradient(180deg, #1a2fa8 0%, var(--ifop-blue) 100%);
   color: #fff;
-  padding: 8px 10px;
+  padding: 9px 10px;
   font-weight: 600;
   white-space: nowrap;
   position: sticky;
   top: 0;
   z-index: 10;
-  border-right: 1px solid rgba(255,255,255,0.15);
+  border-right: 1px solid rgba(255,255,255,0.12);
+  letter-spacing: 0.02em;
 }
 .ever-table thead th:last-child { border-right: none; }
 
 .ever-table tbody tr { border-bottom: 1px solid #e9ecef; }
-.ever-table tbody tr:hover { background: #eef1fb; }
+.ever-table tbody tr.row-vacation:hover { background: #e2e8f9 !important; }
 
 .ever-table td {
   padding: 6px 10px;
   vertical-align: middle;
 }
 
-/* Lignes alternées pour les vacations détail */
+/* Lignes vacation : fond alterné + légère indentation 1ère cellule */
 .row-vacation { background: var(--row-alt); }
+.row-vacation td:first-child { padding-left: 18px; }
 
 /* Ligne totale vol */
 .row-total-vol {
   background: var(--ifop-blue-lt);
   font-weight: 600;
   border-top: 2px solid var(--ifop-blue);
+  border-left: 3px solid var(--ifop-accent);
 }
 
 /* Ligne totale aéroport / site */
@@ -169,6 +218,7 @@ body {
   background: var(--ifop-blue);
   color: #fff;
   font-weight: 700;
+  border-left: 3px solid rgba(255,255,255,0.6);
 }
 
 /* Ligne complétée (objectif atteint) */
@@ -177,62 +227,101 @@ body {
   color: var(--row-ok-text);
 }
 
-/* Cellule taux */
-.cell-rate {
-  font-weight: 600;
-}
-.cell-rate.good  { color: #155724; }
-.cell-rate.mid   { color: #856404; }
-.cell-rate.bad   { color: #842029; }
+/* ---- Taux de réalisation — badge coloré ---- */
+.cell-rate { text-align: right; }
 
-/* Cellule code enquêteur (police monospace) */
-.cell-code { font-family: 'Consolas', monospace; font-size: 0.78rem; }
+.rate-pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  min-width: 46px;
+  text-align: center;
+}
+.rate-pill.good { background: #d4edda; color: #155724; }
+.rate-pill.mid  { background: #fff3cd; color: #7d5a00; }
+.rate-pill.bad  { background: #f8d7da; color: #842029; }
+
+/* Code aéroport — gras */
+.cell-aeroport {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-size: 0.82rem;
+}
+
+/* Cellules monospace génériques */
+.cell-code { font-family: 'Consolas', monospace; font-size: 0.82rem; }
+
+/* Numéros de vol — Consolas gras */
+.cell-numvol { font-family: 'Consolas', monospace; font-size: 0.82rem; font-weight: 700; }
+span.cell-numvol { font-size: inherit; }
+
+/* Texte long tronqué avec ellipse (tooltip via title= sur le td parent) */
+.cell-clip {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* Icône commentaire */
 .btn-comment {
   background: none;
   border: none;
-  color: var(--ifop-accent);
+  color: #adb5bd;
   cursor: pointer;
   padding: 0 4px;
   font-size: 1rem;
+  transition: color 0.12s;
 }
 .btn-comment:hover { color: var(--ifop-blue); }
 .btn-comment.has-comment { color: #e67e22; }
 
-/* ---- Affectation ---- */
+/* ================================================================
+   AFFECTATION
+   ================================================================ */
 .row-modifiable { cursor: pointer; }
 .row-modifiable:hover { background: #eef1fb !important; }
 
 .affectation-select {
   font-size: 0.8rem;
-  padding: 2px 6px;
+  padding: 3px 6px;
   border: 1px solid #ced4da;
-  border-radius: 4px;
+  border-radius: 6px;
   max-width: 180px;
+  transition: border-color 0.15s;
+}
+.affectation-select:not(:disabled):focus {
+  border-color: var(--ifop-accent);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(58,86,212,0.12);
 }
 .affectation-select:disabled { background: #e9ecef; cursor: not-allowed; }
 
-/* Popup détail vacation (hors aéroport) */
+/* Popup détail vacation */
 .vacation-detail-popup {
   background: #fff;
   border: 1px solid #dee2e6;
+  border-left: 3px solid var(--ifop-accent);
   border-radius: 8px;
   padding: 1rem;
-  margin-top: 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
 }
 
-/* ---- Login ---- */
+/* ================================================================
+   LOGIN
+   ================================================================ */
 .login-card {
   max-width: 400px;
   margin: 80px auto;
   border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(16,33,139,0.18);
+  box-shadow: 0 8px 32px rgba(16,33,139,0.18);
   overflow: hidden;
 }
 .login-header {
-  background: var(--ifop-blue);
+  background: linear-gradient(135deg, var(--ifop-blue) 0%, #1a2fa8 100%);
   color: #fff;
   padding: 2rem;
   text-align: center;
@@ -241,11 +330,12 @@ body {
 .login-header p  { font-size: 0.85rem; opacity: 0.8; margin: 0; }
 .login-body { padding: 2rem; background: #fff; }
 
-/* ---- Responsive ---- */
+/* ================================================================
+   RESPONSIVE
+   ================================================================ */
 .ever-table-scroll {
   overflow-x: auto;
   max-height: calc(100vh - 200px);
   overflow-y: auto;
 }
-
 /* ================================================================ */

@@ -105,7 +105,7 @@ $(function () {
 
       $tbody.append(`<tr class="row-vacation ${isComplete ? 'row-complete' : ''}" data-id="${r.ID_Vacation}">
         <td>${escHtml(r.Nom_Site_Ou_Aeroport || '')}</td>
-        <td>${escHtml(r.Date_Vacation || '')}</td>
+        <td>${escHtml(fmtDate(r.Date_Vacation) || '')}</td>
         <td class="cell-code">${escHtml(r.Code_Periode_Journee || '')}</td>
         <td class="cell-code">${escHtml(r.Numero_Vacation || '')}</td>
         <td>${escHtml(r.Heure_Arrivee_Enqueteur || '')}</td>

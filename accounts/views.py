@@ -16,7 +16,7 @@ La session stocke :
     user_role_label          str   – libellé du rôle
     user_id_societe_terrain  int   – 1=IFOP / 2=ST / None pour les rôles non liés à une société
     user_code_societe_terrain str  – "IFOP" / "SOLUTION_TERRAIN" / None
-    user_matricule           str   – matricule enquêteur (@pMatricule_Connexion), peut être None
+    user_matricule           str   – login = matricule connexion (@pMatricule_Connexion / @pUtilisateur_Login)
     affectation_authorized   bool  – mot de passe section affectation validé
 """
 
@@ -59,9 +59,8 @@ def _build_session(request, user: dict, login: str):
     request.session['user_code_societe_terrain'] = user.get('Code_Societe_Terrain')
     request.session['affectation_authorized']    = False
 
-    # Matricule enquêteur (utilisé comme @pMatricule_Connexion dans les fonctions de suivi)
-    matricule = db.get_matricule_enqueteur(login)
-    request.session['user_matricule'] = matricule
+    # Le login EST le matricule de connexion (@pMatricule_Connexion / @pUtilisateur_Login)
+    request.session['user_matricule'] = login
 
 
 def _validate_new_password(password: str, confirm: str) -> list[str]:

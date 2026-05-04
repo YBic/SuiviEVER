@@ -36,9 +36,12 @@
     </select>
   </div>
 
-  <div class="filter-group" style="justify-content:flex-end;">
+  <div class="filter-group" style="justify-content:flex-end; flex-direction:row; gap:0.4rem;">
     <button id="btn-refresh-data" class="btn btn-primary btn-sm">
       <i class="bi bi-arrow-clockwise me-1"></i>Actualiser
+    </button>
+    <button id="btn-export-csv" class="btn btn-outline-secondary btn-sm" title="Exporter les données en CSV" disabled>
+      <i class="bi bi-download me-1"></i>CSV
     </button>
   </div>
 </div>
@@ -49,12 +52,12 @@
     <table class="ever-table" id="table-suivi-aeroport">
       <thead>
         <tr>
-          <th>Aéroport</th>
-          <th>N° Vacation</th>
+          <th class="text-center">Aéroport</th>
+          <th class="text-center">N° Vacation</th>
           <th>Enquêteur</th>
-          <th>Compagnie – Vol</th>
+          <th class="text-center">Compagnie – Vol</th>
           <th>Destination</th>
-          <th>Heure départ</th>
+          <th class="text-center">Heure départ</th>
           <th class="text-end">Objectif</th>
           <th class="text-end">100% complétés</th>
           <th class="text-end">Taux réal.</th>
@@ -63,7 +66,7 @@
           <th class="text-end">Abandons</th>
           <th class="text-end">À recruter</th>
           {% if can_comment %}
-          <th class="text-center">Cmnt</th>
+          <th class="text-center"></th>
           {% endif %}
         </tr>
       </thead>

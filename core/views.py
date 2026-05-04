@@ -70,8 +70,9 @@ def suivi_hors_aeroport(request):
 def affectation(request):
     """Page d'affectation des enquêteurs aux vacations."""
     context = {
-        'page':  'affectation',
-        'today': date.today(),
+        'page':           'affectation',
+        'today':          date.today(),
+        'can_affectation': True,   # toujours True ici : le décorateur filtre déjà l'accès
     }
     return render(request, 'core/affectation.html', context)
 
@@ -111,9 +112,13 @@ def api_aeroports(request):
 def api_sites(request):
     ctx           = _session_ctx(request)
     date_vacation = request.GET.get('date', date.today().isoformat())
-    matricule     = ctx['matricule'] if ctx['role'] == 'ENQUETEUR' else None
+    id_personne   = ctx['user_id'] if ctx['role'] == 'ENQUETEUR' else None
     try:
-        data = db.get_sites(date_vacation, matricule)
+        data = db.get_sites(
+            date_vacation,
+            id_societe_terrain=ctx['id_societe_terrain'],
+            id_personne=id_personne,
+        )
         return JsonResponse({'status': 'ok', 'data': data})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -143,7 +148,11 @@ def api_enqueteurs_site(request):
     date_vacation = request.GET.get('date', date.today().isoformat())
     id_site       = request.GET.get('id_site') or None
     try:
-        data = db.get_enqueteurs_site(date_vacation, id_site)
+        data = db.get_enqueteurs_site(
+            date_vacation,
+            id_site=id_site,
+            id_societe_terrain=ctx['id_societe_terrain'],
+        )
         return JsonResponse({'status': 'ok', 'data': data})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -194,7 +203,7 @@ def api_suivi_hors_aeroport(request):
     try:
         rows = db.get_suivi_hors_aeroport(
             date_vacation,
-            id_aeroport=id_site,   # provisoire : TVF expose @pID_Aeroport, pas @pID_Site
+            id_site=id_site,
             id_personne=id_personne,
             id_societe_terrain=ctx['id_societe_terrain'],
         )
