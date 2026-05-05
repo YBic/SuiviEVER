@@ -1,5 +1,5 @@
 # ── Image de base ──────────────────────────────────────────────────────────────
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
 
 # ── Drivers ODBC Microsoft pour SQL Server (Debian 12 / bookworm) ──────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
