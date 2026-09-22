@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
@@ -56,11 +56,14 @@ DATABASES = {}
 # Sessions stockées côté serveur en fichiers
 SESSION_ENGINE   = 'django.contrib.sessions.backends.file'
 SESSION_FILE_PATH = os.getenv('SESSION_FILE_PATH', BASE_DIR / 'sessions')
-SESSION_COOKIE_AGE = 3600  # 1 heure
+SESSION_COOKIE_AGE = 28800          # 8 heures (journée de travail)
+SESSION_SAVE_EVERY_REQUEST = True   # renouvelle le TTL à chaque requête AJAX
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 # En production derrière NPM (HTTPS), sécuriser le cookie de session
 SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # Indique à Django qu'il est derrière un reverse proxy HTTPS (nginx-proxy-manager)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -143,6 +146,14 @@ LOGGING = {
         },
         # Erreurs SQL dans la couche db
         'ever.db': {
+            'handlers':  ['console', 'file_app'],
+            'level':     'WARNING',
+            'propagate': False,
+        },
+        # Erreurs techniques des vues API. Le détail n'est plus renvoyé au client
+        # (audit sécurité 2026) : il n'existe plus qu'ici, indexé par la référence
+        # affichée à l'utilisateur.
+        'ever.views': {
             'handlers':  ['console', 'file_app'],
             'level':     'WARNING',
             'propagate': False,

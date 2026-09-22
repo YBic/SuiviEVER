@@ -295,11 +295,59 @@ Retourne les aéroports disponibles pour la page affectation.
 
 ---
 
-## 7. TVFs en attente (placeholders)
+## 7. Détail vacation hors aéroport
 
-| TVF | Endpoint concerné | État |
-|-----|------------------|------|
-| TVF hors aéroport détail | `GET /api/suivi/hors-aeroport/detail/` | À créer par Philippe |
+### `ft_Extranet_Vacation_Zone_Site`
+
+```
+@pID_Societe_Terrain    tinyint   NULL ok
+@pID_Vacation_Zone_Site int       NULL ok
+@pID_Vacation_Zone      int       NULL ok   ← filtre principal (id_vacation)
+@pID_Zone_Enquete       smallint  NULL ok
+@pDate_Vacation_Debut   date      NULL ok
+@pDate_Vacation_Fin     date      NULL ok
+@pNumero_Enqueteur      tinyint   NULL ok
+@pNumero_Vacation       tinyint   NULL ok
+@pID_Type_Site          tinyint   NULL ok
+@pID_Site               smallint  NULL ok
+@pID_Enqueteur          int       NULL ok
+```
+
+> Retourne une ligne par (site × enquêteur). Tous les types de sites sont mélangés
+> (GARE_TRAIN, GARE_BUS, AIRE_AUTOROUTE, PORT_MARITIME, VILLE_TOURISTIQUE…).
+
+**Colonnes SQL → JSON :**
+
+| Colonne SQL | Clé JSON |
+|-------------|----------|
+| `ID_Vacation_Zone_Site` | `ID_Vacation_Zone_Site` |
+| `ID_Vacation_Zone` | `ID_Vacation_Zone` |
+| `Code_Type_Site` | `Code_Type_Site` |
+| `Type_Site` | `Type_Site` |
+| `Nom_Site` | `Nom_Site` |
+| `Date_Vacation` *(date)* | `Date_Vacation` (str YYYY-MM-DD) |
+| `Numero_Vacation` | `Numero_Vacation` |
+| `Numero_Enqueteur` | `Numero_Enqueteur` |
+| `Matricule_Enqueteur` | `Matricule_Enqueteur` |
+| `f"{Prenom_Enqueteur} {Nom_Enqueteur}"` | `Libelle_Enqueteur` |
+| `Nbre_Enqueteurs_Site` | `Nbre_Enqueteurs_Site` |
+| `Nbre_Interviews_A_Faire` | `Objectif_Total` |
+| `Nbre_Interviews_A_Faire_Enq` | `Objectif_Enq` |
+| `Nbre_Interviews_Realisees` | `Recrutes` |
+| `Nbre_Interviews_Realisees_Valides` | `Valides` |
+| `Nbre_Interviews_FAF_Realisees_Valides` | `FAF_Valides` |
+| *(calculé)* | `Abandons` = Recrutes − Valides |
+| `Trajet_Train_Nbre_Trains` | `Nbre_Trains` |
+| `Liste_Gare_Terminus_Train` | `Gares_Terminus` |
+| `Liste_Pays_Terminus_Train` | `Pays_Terminus` |
+| `Trajet_Gare_Train_Heure_Depart_Min` *(time)* | `Heure_Train_Min` (str HH:MM) |
+| `Trajet_Gare_Train_Heure_Depart_Max` *(time)* | `Heure_Train_Max` (str HH:MM) |
+| `Commentaire_Avant_Vacation` | `Commentaire_Avant` |
+| `Commentaire_Apres_Vacation` | `Commentaire_Apres` |
+| `Commentaire_IFOP_Apres_Vacation` | `Commentaire_IFOP` |
+
+**Endpoint :** `GET /api/suivi/hors-aeroport/detail/?id_vacation=<ID_Vacation_Zone>`
+**Page :** Suivi Hors Aéroport (modale détail)
 
 ---
 

@@ -1,6 +1,6 @@
 # Guide de déploiement — EVER Suivi Affectation
 
-> Pour : équipe ops (Vincent).
+> Pour : équipe ops (Vincent) et dev (Yann).
 > Mis à jour : mai 2026.
 
 ---
@@ -12,7 +12,7 @@ Internet
    │
    ▼
 [Nginx Proxy Manager]  (réseau Docker : nginx-proxy-manager_default)
-   │  ever.ifop.com → :8000
+   │  ever.ifop.com → ever-suivi:8000
    ▼
 [Container ever-suivi]  (gunicorn 3 workers)
    │
@@ -21,7 +21,8 @@ Internet
 ```
 
 Les fichiers statiques sont servis directement par **Whitenoise** (pas de volume nginx dédié).
-Les logs et sessions Django sont montés en volumes Docker nommés.
+Les logs gunicorn vont sur stdout/stderr → visibles dans Portainer.
+Les sessions Django sont montées en volume Docker nommé.
 
 ---
 
@@ -43,127 +44,135 @@ ORDER BY 1;
 ### Côté serveur Docker (`srv-dbapps-01`)
 - Docker Engine installé
 - Registry interne accessible : `localhost:5000`
-- Réseau `nginx-proxy-manager_default` existant
-- SSH configuré (clé publique du poste dev autorisée)
+- Réseau `nginx-proxy-manager_default` existant (créé par la stack NPM)
+- Accès à Portainer : `https://portainer.ifop.com`
 
 ---
 
 ## Variables d'environnement
 
-Créer un fichier `.env` sur le serveur (ne jamais committer ce fichier) :
+Les variables sont saisies directement dans Portainer (section "Environment variables" de la stack).
+**Ne jamais committer de valeurs réelles dans le dépôt git.**
 
-```dotenv
-# Django
-SECRET_KEY=<clé aléatoire 50+ caractères>
-DEBUG=False
-ALLOWED_HOSTS=ever.ifop.com
+| Variable | Exemple / Description |
+|----------|----------------------|
+| `SECRET_KEY` | Chaîne aléatoire 50+ caractères — **sans `$`** (docker-compose interpréterait `$x` comme variable) |
+| `ALLOWED_HOSTS` | `ever.ifop.com,srv-dbapps-01` |
+| `DB_HOST` | `SRV-LANSQL-03\MSSQLIFOPGE` |
+| `DB_NAME` | `EVER` (prod) ou `EVER_DEV` (test) |
+| `DB_USER` | `ever_app` |
+| `DB_PASSWORD` | Mot de passe ever_app (caractères spéciaux OK, gérés automatiquement) |
+| `FIRST_LOGIN_PASSWORD` | Mot de passe générique première connexion |
+| `ADMIN_PASSWORD` | Mot de passe confirmation affectation |
 
-# SQL Server
-DB_HOST=SRV-LANSQL-03\MSSQLIFOPGE
-DB_NAME=EVER
-DB_USER=ever_app
-DB_PASSWORD=<mot de passe ever_app>
+> ⚠️ **SECRET_KEY** : ne pas utiliser de caractères `$` — docker-compose les interprète comme
+> des variables d'environnement. Générer avec :
+> `python -c "import secrets,string; print(''.join(secrets.choice(string.ascii_letters+string.digits+'!@#%^&*(-_=+)') for _ in range(50)))"`
 
-# Mots de passe applicatifs
-FIRST_LOGIN_PASSWORD=<mdp premier login>
-ADMIN_PASSWORD=<mdp confirmation affectation>
-```
-
-> ⚠️ Si le mot de passe `DB_PASSWORD` contient `;`, il doit être entouré d'accolades
-> dans la chaîne de connexion ODBC : `{mot;de;passe}`. Ce traitement est automatique
-> dans `accounts/db.py`.
+> ⚠️ **DB_PASSWORD** : si le mot de passe contient `;` ou `}`, c'est géré automatiquement
+> dans `accounts/db.py` (wrapping ODBC `{...}`).
 
 ---
 
-## Procédure de déploiement
+## Procédure de déploiement (via Portainer)
 
-### 1. Construire l'image (depuis le poste dev)
+Le déploiement se fait entièrement depuis **Portainer** — pas besoin d'accès SSH.
 
-```bash
-cd C:\Users\y_bicrel\source\repos\suivi-affectation-ever
+### 1. Préparer le tarball de build
 
-# Build
-docker build -t localhost:5000/ever-suivi:latest .
+Depuis le poste dev, générer l'archive de build (Dockerfile à la racine) :
 
-# Push vers le registry interne
-docker push localhost:5000/ever-suivi:latest
+```python
+# Exécuter depuis la racine du projet
+import tarfile, pathlib
+
+root = pathlib.Path('.')
+out  = pathlib.Path('ever-suivi-build.tar.gz')
+SKIP = {'.git', '.venv', '__pycache__', 'staticfiles', '.env'}
+
+with tarfile.open(out, 'w:gz') as tf:
+    for p in root.rglob('*'):
+        if any(part in SKIP or part.startswith('__pycache__') for part in p.parts):
+            continue
+        if p.suffix == '.pyc':
+            continue
+        tf.add(p, arcname=str(p))
 ```
 
-### 2. Déployer sur le serveur
-
+Ou via le script Python fourni (à la racine du projet) :
 ```bash
-# Se connecter au serveur
-ssh <user>@srv-dbapps-01
-
-# Aller dans le dossier du projet (ou le créer)
-mkdir -p ~/ever && cd ~/ever
-
-# Copier docker-compose.yml et .env si pas déjà présents
-# scp docker-compose.yml .env <user>@srv-dbapps-01:~/ever/
-
-# Récupérer la nouvelle image et redémarrer
-docker compose pull
-docker compose up -d
+python make_tarball.py
+# → génère ever-suivi-build.tar.gz
 ```
 
-### 3. Vérifier le démarrage
+### 2. Construire l'image dans Portainer
 
-```bash
-# Logs en temps réel
-docker compose logs -f
+1. **Portainer → Images → Build a new image**
+2. **Name** : `localhost:5000/ever-suivi:latest`
+3. **Build method** : `Upload` → sélectionner `ever-suivi-build.tar.gz`
+4. Cliquer **Build the image**
+5. Attendre la fin du build (logs visibles dans l'onglet Output)
+6. Vérifier que l'image apparaît dans **Images** avec le tag `localhost:5000/ever-suivi:latest`
 
-# Vérifier que le container est bien UP
-docker compose ps
+### 3. Créer ou mettre à jour la stack
 
-# Test HTTP rapide
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/login/
-# → doit retourner 200
-```
+#### Premier déploiement
+
+1. **Portainer → Stacks → Add stack**
+2. **Name** : `ever-suivi`
+3. **Build method** : `Web editor` → coller le contenu de `docker-compose.yml`
+4. **Environment variables** : renseigner toutes les variables du tableau ci-dessus
+5. Cliquer **Deploy the stack**
+
+#### Mise à jour (nouvelle version)
+
+1. Rebuilder l'image (étape 1-2 ci-dessus)
+2. **Portainer → Stacks → ever-suivi → Editor**
+3. Cliquer **Update the stack** — **sans cocher** "Re-pull image"
+   *(l'image est locale, pas dans un registry externe)*
 
 ---
 
-## Mise à jour (déploiement continu)
+## Nginx Proxy Manager
 
-```bash
-# Depuis le poste dev
-docker build -t localhost:5000/ever-suivi:latest .
-docker push localhost:5000/ever-suivi:latest
+Le container `ever-suivi` est sur le réseau `nginx-proxy-manager_default` avec le hostname
+`ever-suivi`. NPM peut donc lui router le trafic directement par nom de container.
 
-# Sur le serveur
-ssh <user>@srv-dbapps-01 "cd ~/ever && docker compose pull && docker compose up -d"
-```
+Dans l'interface NPM, créer un **Proxy Host** :
+
+| Champ | Valeur |
+|-------|--------|
+| Domain Names | `ever.ifop.com` |
+| Scheme | `http` |
+| Forward Hostname / IP | `ever-suivi` |
+| Forward Port | `8000` |
+| Cache Assets | off |
+| Block Common Exploits | on |
+| SSL | certificat interne IFOP ou Let's Encrypt |
 
 ---
 
 ## Volumes Docker
 
-| Volume | Contenu | Localisation dans le container |
-|--------|---------|-------------------------------|
-| `ever_logs` | Logs gunicorn (accès + erreurs) | `/app/logs/` |
-| `ever_sessions` | Fichiers de session Django | `/app/sessions/` |
-
-```bash
-# Lire les logs gunicorn
-docker compose exec web tail -100 /app/logs/gunicorn-error.log
-
-# Lire les logs applicatifs Django
-docker compose exec web tail -100 /app/logs/ever.log
-```
+| Volume | Contenu | Note |
+|--------|---------|------|
+| `ever_sessions` | Fichiers de session Django | Persisté entre redémarrages |
+| `ever_logs` | Répertoire logs (non utilisé en prod) | Logs sur stdout en prod |
 
 ---
 
-## Réseau — Nginx Proxy Manager
+## Vérification post-déploiement
 
-Le container s'attache au réseau externe `nginx-proxy-manager_default`.
-Dans l'interface NPM, créer un **Proxy Host** :
+Dans **Portainer → Containers → ever-suivi → Logs**, les lignes attendues au démarrage :
 
-| Champ | Valeur |
-|-------|--------|
-| Domain | `ever.ifop.com` |
-| Scheme | `http` |
-| Forward Hostname | `ever-suivi` *(nom du service docker-compose)* |
-| Forward Port | `8000` |
-| SSL | Let's Encrypt (si accessible depuis internet) ou certificat interne |
+```
+[INFO] Starting gunicorn 26.0.0
+[INFO] Listening at: http://0.0.0.0:8000
+[INFO] Using worker: sync
+[INFO] Booting worker with pid: X   (× 3)
+```
+
+L'absence d'erreur `[ERROR]` ou `[CRITICAL]` confirme que Django démarre correctement.
 
 ---
 
@@ -182,10 +191,9 @@ python -m venv .venv
 # Installer les dépendances
 pip install -r requirements.txt
 
-# Créer le fichier .env local (pointer sur EVER_DEV)
-# DB_HOST=SRV-LANSQL-03\MSSQLIFOPGE
-# DB_NAME=EVER_DEV
-# ...
+# Créer le fichier .env local
+cp .env.example .env
+# → éditer .env : pointer sur EVER_DEV, renseigner les mots de passe
 
 # Lancer le serveur de développement
 python manage.py runserver
@@ -203,6 +211,9 @@ python manage.py runserver
 |----------|---------------|--------|
 | `500` sur toutes les pages | Connexion DB échouée | Vérifier `DB_HOST`, `DB_PASSWORD`, droits `ever_app` |
 | "Identifiant inconnu" au login | TVF `ft_EVER_Utilisateur` absente ou droits manquants | Relancer `grant_ever_app.sql` |
-| Container redémarre en boucle | Erreur au collectstatic ou ODBC manquant | `docker compose logs web` |
+| Container redémarre en boucle | Erreur Django au démarrage | Portainer → Logs du container |
 | Sessions perdues après redémarrage | Volume `ever_sessions` non monté | Vérifier le `docker-compose.yml` |
 | Page blanche sans erreur | `DEBUG=False` + `ALLOWED_HOSTS` incorrect | Ajouter le domaine dans `ALLOWED_HOSTS` |
+| Build image échoue "NO_PUBKEY" | Clé GPG Microsoft non reconnue | Vérifier le Dockerfile (méthode `gpg --dearmor`) |
+| "manifest unknown" au redeploy | Image locale, pas dans registry | Décocher "Re-pull image" dans Portainer |
+| Variables `$x` vides au démarrage | `SECRET_KEY` contient des `$` | Régénérer la clé sans caractères `$` |

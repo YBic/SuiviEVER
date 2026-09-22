@@ -1,0 +1,75 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Enquêteurs{% endblock %}
+{% block page_title %}Enquêteurs{% endblock %}
+
+{% block content %}
+
+<div class="ever-filters">
+  <div class="filter-group" style="flex-direction:row; gap:0.4rem; margin-left:auto; justify-content:flex-end;">
+    <button id="btn-refresh-data" class="btn btn-primary btn-sm">
+      <i class="bi bi-arrow-clockwise me-1"></i>Actualiser
+    </button>
+    <button id="btn-creer-enqueteur" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-person-plus me-1"></i>Créer
+    </button>
+  </div>
+</div>
+
+<div class="ever-table-wrapper">
+  <div class="ever-table-scroll">
+    <table class="ever-table" id="table-enqueteurs">
+      <thead>
+        <tr>
+          <th>Matricule</th>
+          <th>Nom</th>
+          <th>Prénom</th>
+          <th>Début de mission</th>
+          <th>Fin de mission</th>
+          <th>Blocage affectation IFOP</th>
+          <th class="text-center" title="Statut réel du compte Voxco — lecture seule">Voxco</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-enqueteurs">
+        <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-hourglass-split me-2"></i>Chargement…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== MODAL CRÉATION ENQUÊTEUR ===== -->
+<div class="modal fade" id="modal-creation-enqueteur" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Création d'un enquêteur</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Veuillez indiquer le nom et le prénom de l'enquêteur.</p>
+        <div id="creation-enq-error" class="alert alert-danger d-none small"></div>
+        <div class="mb-2">
+          <label class="form-label small">Nom</label>
+          <input type="text" class="form-control form-control-sm" id="creation-enq-nom">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small">Prénom</label>
+          <input type="text" class="form-control form-control-sm" id="creation-enq-prenom">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" id="btn-valider-creation-enq">
+          <i class="bi bi-check-lg me-1"></i>Valider
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/enqueteurs.js' %}"></script>
+{% endblock %}

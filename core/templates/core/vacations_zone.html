@@ -1,0 +1,153 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Vacations Zone{% endblock %}
+{% block page_title %}Vacations Zone{% endblock %}
+
+{% block content %}
+
+<!-- ===== FILTRES ===== -->
+<div class="ever-filters">
+  <div class="filter-group">
+    <label for="filter-date-debut">Date début</label>
+    <div class="d-flex gap-1 align-items-center">
+      <input type="date" id="filter-date-debut" value="{{ today|date:'Y-m-d' }}" autocomplete="off">
+      <button id="btn-today" class="btn btn-outline-secondary btn-sm px-2" title="Aujourd'hui">
+        <i class="bi bi-calendar-check"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <label for="filter-date-fin">Date fin</label>
+    <input type="date" id="filter-date-fin" value="{{ today|date:'Y-m-d' }}" autocomplete="off">
+  </div>
+
+  <div class="filter-group">
+    <label for="filter-zone">Zone d'enquête</label>
+    <select id="filter-zone">
+      <option value="">— Toutes —</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label for="filter-enqueteur">Enquêteur</label>
+    <select id="filter-enqueteur">
+      <option value="">— Tous —</option>
+    </select>
+  </div>
+
+  <div class="filter-group" style="justify-content:flex-end; flex-direction:row; gap:0.4rem;">
+    <button id="btn-refresh-data" class="btn btn-primary btn-sm">
+      <i class="bi bi-arrow-clockwise me-1"></i>Actualiser
+    </button>
+    <button id="btn-export-csv" class="btn btn-outline-secondary btn-sm" title="Exporter en CSV" disabled>
+      <i class="bi bi-download me-1"></i>CSV
+    </button>
+    <button id="btn-creer-vacation" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-calendar-plus me-1"></i>Créer
+    </button>
+  </div>
+</div>
+
+<!-- ===== TABLEAU DES VACATIONS ===== -->
+<div class="ever-table-wrapper">
+  <div class="ever-table-scroll">
+    <table class="ever-table" id="table-vacations-zone">
+      <thead>
+        <tr>
+          <th>Zone d'enquête</th>
+          <th>N° Vacation</th>
+          <th>Enquêteur 1</th>
+          <th>Enquêteur 2</th>
+          <th class="text-center">Détail</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-vacations-zone">
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">
+            <i class="bi bi-hourglass-split me-2"></i>Sélectionnez une date pour charger les données…
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== PANEL DÉTAIL DES SITES ===== -->
+<div id="panel-detail-vacation" class="vacation-detail-popup d-none mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <strong><i class="bi bi-list-ul me-1"></i>Sites composant la vacation <span id="detail-vacation-num"></span></strong>
+    <button class="btn btn-sm btn-outline-secondary" id="btn-close-detail">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+  <table class="ever-table" id="table-detail-sites">
+    <thead>
+      <tr>
+        <th>Site</th>
+        <th>Type</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-detail-sites"></tbody>
+  </table>
+</div>
+
+<!-- ===== MODAL CRÉATION VACATION ZONE ===== -->
+<div class="modal fade" id="modal-creation-vacation" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-calendar-plus me-2"></i>Création de vacations zone</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Veuillez indiquer la date, la zone et le nombre d'enquêteurs de chaque vacation.</p>
+        <div id="creation-error" class="alert alert-danger d-none small"></div>
+        <div id="creation-lignes"></div>
+        <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="btn-ajouter-ligne">
+          <i class="bi bi-plus-lg me-1"></i>Ajouter une ligne
+        </button>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" id="btn-valider-creation">
+          <i class="bi bi-check-lg me-1"></i>Valider
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<template id="template-ligne-creation">
+  <div class="row g-2 align-items-end mb-2 ligne-creation">
+    <div class="col-4">
+      <label class="form-label mb-1 small">Date</label>
+      <input type="date" class="form-control form-control-sm ligne-date">
+    </div>
+    <div class="col-4">
+      <label class="form-label mb-1 small">Zone</label>
+      <select class="form-select form-select-sm ligne-zone">
+        <option value="">— Sélectionner —</option>
+      </select>
+    </div>
+    <div class="col-3">
+      <label class="form-label mb-1 small">Nombre d'enquêteurs</label>
+      <select class="form-select form-select-sm ligne-nb-enqueteurs">
+        <option value="1">1 enquêteur</option>
+        <option value="2">2 enquêteurs</option>
+      </select>
+    </div>
+    <div class="col-1">
+      <button type="button" class="btn btn-sm btn-outline-danger btn-supprimer-ligne" title="Supprimer cette ligne">
+        <i class="bi bi-dash-lg"></i>
+      </button>
+    </div>
+  </div>
+</template>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/vacations_zone.js' %}"></script>
+{% endblock %}

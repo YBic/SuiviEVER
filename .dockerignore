@@ -1,0 +1,34 @@
+# Secrets & config locale (les env vars viennent de docker-compose)
+.env
+.env.*
+!.env.example
+
+# Scripts de diagnostic / dev
+debug_login.py
+deploy.ps1
+
+# Données runtime (montées en volume)
+sessions/
+logs/
+staticfiles/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Git / IDE / OS
+.git/
+.gitignore
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docs / divers
+*.md
+*.xlsx

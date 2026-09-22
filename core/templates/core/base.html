@@ -15,6 +15,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <!-- App CSS -->
   <link rel="stylesheet" href="{% static 'css/ever.css' %}">
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
 
   {% block extra_head %}{% endblock %}
 </head>
@@ -32,7 +34,7 @@
     </a>
     <a href="{% url 'core:suivi_hors_aeroport' %}"
        class="btn btn-header {% if page == 'suivi_hors_aeroport' %}active{% endif %}"
-       title="Suivi Hors Aéroport">
+       title="Suivi Zones">
       <i class="bi bi-geo-alt"></i>
     </a>
     {% if can_affectation %}
@@ -40,6 +42,20 @@
        class="btn btn-header {% if page == 'affectation' %}active{% endif %}"
        title="Affectation">
       <i class="bi bi-people"></i>
+    </a>
+    {% endif %}
+    {% if can_enqueteurs %}
+    <a href="{% url 'core:enqueteurs' %}"
+       class="btn btn-header {% if page == 'enqueteurs' %}active{% endif %}"
+       title="Enquêteurs">
+      <i class="bi bi-person-badge"></i>
+    </a>
+    {% endif %}
+    {% if can_vacations_zone %}
+    <a href="{% url 'core:vacations_zone' %}"
+       class="btn btn-header {% if page == 'vacations_zone' %}active{% endif %}"
+       title="Vacations Zone">
+      <i class="bi bi-calendar2-week"></i>
     </a>
     {% endif %}
   </nav>
@@ -56,6 +72,10 @@
       <span class="badge role-badge role-{{ request.session.user_role|lower }} ms-1">{{ request.session.user_role_label }}</span>
     </span>
     <span id="clock" class="ever-clock font-monospace"></span>
+    <span id="freshness" class="ever-freshness d-none"></span>
+    <button id="btn-autorefresh" class="btn btn-header" title="Actualisation automatique (5 min)">
+      <i class="bi bi-clock-history"></i>
+    </button>
     <button id="btn-refresh" class="btn btn-header" title="Rafraîchir">
       <i class="bi bi-arrow-clockwise" id="refresh-icon"></i>
     </button>
@@ -101,13 +121,14 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="cmnt-id-vacation">
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Commentaire avant vacation</label>
-          <textarea id="cmnt-avant" class="form-control" rows="3" placeholder="Informations préalables à la vacation…"></textarea>
+        <input type="hidden" id="cmnt-rang" value="1">
+        <div class="mb-2">
+          <label class="form-label mb-1">Commentaire vacation</label>
+          <textarea id="cmnt-vac-1" class="form-control form-control-sm" rows="2" placeholder="Informations préalables…"></textarea>
         </div>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Commentaire après vacation</label>
-          <textarea id="cmnt-apres" class="form-control" rows="3" placeholder="Compte-rendu de la vacation…"></textarea>
+        <div class="mb-2">
+          <label class="form-label mb-1" id="cmnt-vol-label">Commentaire vol</label>
+          <textarea id="cmnt-vol-1" class="form-control form-control-sm" rows="2" placeholder="Compte-rendu…"></textarea>
         </div>
       </div>
       <div class="modal-footer">

@@ -10,14 +10,19 @@
 <div class="ever-filters">
   <div class="filter-group">
     <label for="filter-date">Date</label>
-    <input type="date" id="filter-date" value="{{ today|date:'Y-m-d' }}">
+    <div class="d-flex gap-1 align-items-center">
+      <input type="date" id="filter-date" value="{{ today|date:'Y-m-d' }}" autocomplete="off">
+      <button id="btn-today" class="btn btn-outline-secondary btn-sm px-2" title="Aujourd'hui">
+        <i class="bi bi-calendar-check"></i>
+      </button>
+    </div>
   </div>
 
   <div class="filter-group">
     <label for="filter-type-site">Type de site</label>
     <select id="filter-type-site">
       <option value="AEROPORT">Aéroport</option>
-      <option value="HORS">Hors Aéroport</option>
+      <option value="HORS">Zones</option>
     </select>
   </div>
 
@@ -47,6 +52,12 @@
       <i class="bi bi-arrow-clockwise me-1"></i>Actualiser
     </button>
   </div>
+</div>
+
+<!-- ===== ALERTE VACATIONS NON AFFECTÉES ===== -->
+<div id="unassigned-alert" class="alert alert-warning d-flex align-items-center d-none py-2 mb-2" role="alert">
+  <i class="bi bi-exclamation-triangle-fill me-2 flex-shrink-0"></i>
+  <span id="unassigned-count-text"></span>
 </div>
 
 <!-- ===== TABLEAU AFFECTATION ===== -->
@@ -95,5 +106,9 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script>
+  // Superviseurs : accès en lecture à cet écran (specs §4.8), sans droit de modifier.
+  const CAN_MODIFY_AFFECTATION = {{ can_affectation_modifier|yesno:"true,false" }};
+</script>
 <script src="{% static 'js/affectation.js' %}"></script>
 {% endblock %}

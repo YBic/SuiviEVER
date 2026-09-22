@@ -13,8 +13,11 @@ Réinitialisation admin = remettre le champ à NULL directement en base.
 
 import hashlib
 import hmac
+import logging
 import pyodbc
 from django.conf import settings
+
+logger = logging.getLogger('ever.auth')
 
 
 # ---------------------------------------------------------------------------
@@ -75,7 +78,8 @@ def get_utilisateur(login: str) -> dict | None:
                 return None
             columns = [col[0] for col in cursor.description]
             return dict(zip(columns, row))
-    except pyodbc.Error:
+    except pyodbc.Error as e:
+        logger.error('DB_CONNECTION_ERROR  %s', e)
         return None
 
 

@@ -31,6 +31,13 @@ logs/*.log.*
 # Sessions Django (fichiers générés au runtime)
 sessions/
 
+# Archives de build (générées par make_tarball.py / build_tarball.py)
+*.tar.gz
+
+# Dumps SQL de diagnostic : code source d'objets de la base IFOP,
+# dont la fonction d'authentification — à garder hors du dépôt.
+docs/_diag/
+
 # Divers
 .DS_Store
 Thumbs.db

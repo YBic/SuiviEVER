@@ -41,9 +41,17 @@ $pushOk = $LASTEXITCODE
 $tunnel | Stop-Process -Force
 if ($pushOk -ne 0) { Write-Host "ERREUR : push échoué" -ForegroundColor Red; exit 1 }
 
-# ── 3. Redémarrage du stack via SSH ───────────────────────────────────────────
-Write-Host "`n[3/3] Mise à jour du stack sur le serveur..." -ForegroundColor Yellow
+# ── 3. Copie du docker-compose.yml sur le serveur ─────────────────────────────
+# NB : on NE copie PAS .env (config dev). La config de PROD (DB_NAME=EVER_EXP,
+#      DB_HOST, mots de passe…) est gérée dans la section "Environment variables"
+#      du stack Portainer — ne pas l'écraser avec le .env dev du dépôt.
+Write-Host "`n[3/4] Copie du docker-compose.yml sur le serveur..." -ForegroundColor Yellow
+scp docker-compose.yml "${SSH_USER}@${SERVER}:/opt/stacks/ever/docker-compose.yml"
+
+# ── 4. Redémarrage du stack via SSH ───────────────────────────────────────────
+Write-Host "`n[4/4] Mise à jour du stack sur le serveur..." -ForegroundColor Yellow
 ssh "${SSH_USER}@${SERVER}" "docker pull $FULL_TAG && docker stack deploy -c /opt/stacks/ever/docker-compose.yml ever --with-registry-auth"
 
 Write-Host "`n=== Déploiement terminé ===" -ForegroundColor Green
-Write-Host "  Site : https://ever.ifop.com"
+Write-Host "  Site  : https://ever.ifop.com"
+Write-Host "  Base  : EVER_EXP (10.10.1.27,2067)"
