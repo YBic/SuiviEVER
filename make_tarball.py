@@ -22,14 +22,16 @@ SKIP_PARTS = {
     '.git', '.venv', 'venv', 'env', '__pycache__',
     'staticfiles', 'sessions', 'logs',
     '.vscode', '.idea',
+    '_diag',    # dumps du code source d'objets SQL IFOP, dont la fonction
+                # d'authentification : rien à faire dans l'image applicative
 }
 SKIP_NAMES = {
     '.env',                      # secrets : la config prod est dans Portainer
     'debug_login.py',            # script de diagnostic
-    'ever-suivi-build.tar.gz',   # l'archive elle-même
     '.DS_Store', 'Thumbs.db',
 }
-SKIP_SUFFIXES = {'.pyc', '.pyo', '.swp'}
+SKIP_SUFFIXES = {'.pyc', '.pyo', '.swp', '.gz'}   # .gz : les archives de build,
+                                                  # dont celle produite ici
 
 
 def keep(p: pathlib.Path) -> bool:
