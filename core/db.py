@@ -1109,39 +1109,6 @@ def _insert_vacation_zone_payload(cursor, payload_lignes: list[dict]) -> dict:
     return compteurs
 
 
-def _numeros_enqueteur_libres(cursor, date_vacation: str, id_zone_enquete: int,
-                              combien: int) -> list[int]:
-    """
-    Numéros d'emplacement libres pour une (date, zone), bornés à 1..100 par
-    Chk_Numero_Enqueteur_Ta_Vacation_Zone.
-
-    Prc_Vacation_Zone_Insert sait depuis le 2026-09-28 allouer ces numéros
-    elle-même quand on lui passe NULL, mais l'allocation échoue tant qu'aucune
-    vacation n'existe pour la (date, zone) : son `Min()` porte alors sur un
-    ensemble vide et vaut NULL, la boucle `While NULL < 100` ne s'exécute jamais
-    et la procédure rejette la ligne. Reproduit le 2026-09-28, signalé à
-    Philippe. On fournit donc les numéros explicitement, ce qui fonctionne dans
-    tous les cas, y compris une fois son correctif livré.
-
-    Portée (date, zone) sans la société, comme le fait sa procédure : un numéro
-    libre toutes sociétés confondues l'est quelle que soit celle retenue, ce qui
-    reste valable même si les index uniques incluent la société.
-    """
-    cursor.execute(
-        "SELECT Numero_Enqueteur FROM dbo.Vacation_Zone "
-        "WHERE Date_Vacation = ? AND ID_Zone_Enquete = ?",
-        (date_vacation, id_zone_enquete)
-    )
-    pris = {row[0] for row in cursor.fetchall()}
-    libres = [n for n in range(1, 101) if n not in pris][:combien]
-    if len(libres) < combien:
-        raise ValueError(
-            f"Plus d'emplacement disponible pour cette zone au {date_vacation} "
-            "(100 emplacements au maximum)."
-        )
-    return libres
-
-
 def create_vacations_zone(
     id_societe_terrain: int | None,
     lignes:             list[dict],
@@ -1159,8 +1126,11 @@ def create_vacations_zone(
 
     Contrat livré par Philippe le 2026-09-28 : on transmet Nbre_Enqueteurs et on
     laisse Numero_Enqueteur_1 et _2 à NULL — la procédure alloue elle-même ces
-    numéros d'emplacement. C'est atomique, contrairement à un calcul applicatif,
-    et ça rend possible la règle 07 du §7.3.3 (« autant de vacations que
+    numéros d'emplacement (étiquettes d'emplacement uniques par date et zone,
+    société exclue : elle n'est qu'une colonne incluse de l'index unique).
+    L'allocation côté procédure est atomique, là où un calcul applicatif
+    laisserait une fenêtre entre la lecture des numéros pris et l'insertion.
+    C'est ce qui rend possible la règle 07 du §7.3.3 (« autant de vacations que
     souhaité pour une zone à une date donnée »).
 
     Un appel par ligne, pour pouvoir rattacher une erreur à la ligne fautive.
@@ -1175,19 +1145,14 @@ def create_vacations_zone(
         with get_connection() as conn:
             cursor = conn.cursor()
             for ligne in lignes:
-                date_vacation = ligne['date_vacation']
-                id_zone       = int(ligne['id_zone_enquete'])
                 nb_enqueteurs = int(ligne.get('nombre_enqueteurs', 1))
-                numeros = _numeros_enqueteur_libres(
-                    cursor, date_vacation, id_zone, nb_enqueteurs)
-
                 compteurs = _insert_vacation_zone_payload(cursor, [{
                     'ID_Societe_Terrain':           id_societe_terrain,
-                    'Date_Vacation':                date_vacation.replace('-', ''),
-                    'ID_Zone_Enquete':              id_zone,
+                    'Date_Vacation':                ligne['date_vacation'].replace('-', ''),
+                    'ID_Zone_Enquete':              int(ligne['id_zone_enquete']),
                     'Nbre_Enqueteurs':              nb_enqueteurs,
-                    'Numero_Enqueteur_1':           numeros[0],
-                    'Numero_Enqueteur_2':           numeros[1] if nb_enqueteurs == 2 else None,
+                    'Numero_Enqueteur_1':           None,
+                    'Numero_Enqueteur_2':           None,
                     'Nombre_Interviews_A_Faire':    None,
                     'ID_Vacation_Zone_A_Rattraper': None,
                 }])
@@ -1198,8 +1163,6 @@ def create_vacations_zone(
             return False, ("Aucune vacation n'a été créée. Elles existent "
                            "peut-être déjà pour ces dates et ces zones.")
         return True, ''
-    except ValueError as exc:
-        return False, str(exc)
     except pyodbc.Error as exc:
         logger.error("create_vacations_zone failed: %s", exc)
         return False, _extract_sql_message(exc)
