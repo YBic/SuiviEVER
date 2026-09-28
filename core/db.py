@@ -662,65 +662,30 @@ def get_enqueteurs_pour_affectation(id_vacation_enqueteur: int) -> list[dict]:
 
 def get_enqueteurs_pour_affectation_zone(id_vacation_zone: int) -> list[dict]:
     """
-    Candidats pour un emplacement d'une vacation zone (specs §7.3, règles
-    d'affectation 04 et suivante) :
-      - enquêteurs de la société de la vacation dont Date_Fin_Mission IS NULL ;
-      - moins ceux déjà affectés à une vacation zone à la même date, quelle que
-        soit la zone (les 3 cas d'exclusion des specs se ramènent à celui-ci) ;
-      - l'occupant actuel de l'emplacement est conservé, sinon le menu ne
-        pourrait pas afficher la valeur en cours.
+    ft_EVER_Liste_Enqueteur_Pour_Affectation_Zone(@pID_Vacation_Zone)
+    Pendant zone de la TVF aéroport, livrée par Philippe le 2026-09-23. Elle
+    porte elle-même les règles de sélection et d'exclusion des specs §7.3
+    (mission en cours, société de la vacation, enquêteur déjà pris ce jour-là).
 
-    Il n'existe pas de TVF dédiée côté SQL (contrairement à l'aéroport) : les
-    règles sont simples et les données déjà disponibles, on les compose ici.
-
-    Même forme de retour que get_enqueteurs_pour_affectation pour que le JS soit
-    commun. Affecte_Vacation est toujours False : côté zone les enquêteurs déjà
-    pris sont exclus de la liste, pas signalés.
+    ID_Personne est polymorphe, comme pour Prc_Vacation_Zone_Affectation :
+    ID_Personne côté IFOP, ID_Enqueteur_Terrain côté société externe. On le
+    transmet tel quel à l'affectation.
     """
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT Date_Vacation, ID_Societe_Terrain FROM dbo.Vacation_Zone "
-            "WHERE ID_Vacation_Zone = ?",
+            "SELECT * FROM dbo.ft_EVER_Liste_Enqueteur_Pour_Affectation_Zone(?)",
             (id_vacation_zone,)
         )
-        row = cursor.fetchone()
-        if row is None:
-            return []
-        date_vacation, id_societe_terrain = row[0], row[1]
-
-        cursor.execute(
-            "SELECT ID_Vacation_Zone_1, ID_Enqueteur_1, ID_Vacation_Zone_2, ID_Enqueteur_2 "
-            "FROM dbo.ft_Extranet_Vacation_Zone_Pivot(?,NULL,NULL,NULL,?,?,NULL,NULL)",
-            (id_societe_terrain, date_vacation, date_vacation)
-        )
-        deja_affectes: set[int] = set()
-        for id_vz_1, id_enq_1, id_vz_2, id_enq_2 in cursor.fetchall():
-            for id_vz, id_enq in ((id_vz_1, id_enq_1), (id_vz_2, id_enq_2)):
-                if id_enq is not None and id_vz != id_vacation_zone:
-                    deja_affectes.add(id_enq)
-
-        cursor.execute(
-            "SELECT * FROM dbo.ft_Enqueteur_Terrain_Non_IFOP(?, NULL, NULL, NULL, 0)",
-            (id_societe_terrain,)
-        )
         raw_rows = _rows_to_dicts(cursor)
-
-    result = []
-    for r in raw_rows:
-        id_enqueteur = r.get('ID_Enqueteur_Terrain')
-        if r.get('Date_Fin_Mission') is not None or id_enqueteur in deja_affectes:
-            continue
-        matricule = r.get('Matricule_Enqueteur_Terrain') or ''
-        nom       = (r.get('Nom') or '').strip()
-        prenom    = (r.get('Prenom') or '').strip()
-        result.append({
-            'Id_Personne':       id_enqueteur,
-            'Libelle_Enqueteur': f"{matricule} - {nom} {prenom}".strip(),
-            'Affecte_Vacation':  False,
-        })
-    result.sort(key=lambda e: e['Libelle_Enqueteur'])
-    return result
+    return [
+        {
+            'Id_Personne':       r.get('ID_Personne'),
+            'Libelle_Enqueteur': r.get('Libelle_Enqueteur') or '',
+            'Affecte_Vacation':  bool(r.get('Affecte_Vacation')),
+        }
+        for r in raw_rows
+    ]
 
 
 def get_tous_enqueteurs(
@@ -1117,55 +1082,62 @@ def get_vacations_zone(
     return result
 
 
-def _insert_vacation_zone_payload(cursor, payload_lignes: list[dict]) -> None:
-    """Un seul appel EXEC Prc_Vacation_Zone_Insert (@pSimulation=0). Peut lever pyodbc.Error."""
+def _insert_vacation_zone_payload(cursor, payload_lignes: list[dict]) -> dict:
+    """
+    Un appel EXEC Prc_Vacation_Zone_Insert (@pSimulation=0).
+
+    @pJsonOutput est un paramètre de sortie obligatoire depuis le 2026-09-28 :
+    on passe donc par un batch DECLARE/EXEC/SELECT pour le récupérer avec pyodbc.
+    Il renvoie [{"Creation":n,"Suppression":m}] — le compteur demandé à Philippe
+    pour pouvoir distinguer « créé » de « rien fait ».
+
+    Retourne ce dict de compteurs. Peut lever pyodbc.Error.
+    """
     import json as _json
     cursor.execute(
-        "EXEC dbo.Prc_Vacation_Zone_Insert @pJSON=?, @pVacation_Rattrapage_Only=0, @pSimulation=0",
+        """
+        DECLARE @out VARCHAR(MAX);
+        EXEC dbo.Prc_Vacation_Zone_Insert
+            @pJSON=?, @pVacation_Rattrapage_Only=0, @pSimulation=0, @pJsonOutput=@out OUTPUT;
+        SELECT @out;
+        """,
         (_json.dumps(payload_lignes),)
     )
+    rows = cursor.fetchall()
+    brut = ''.join(r[0] for r in rows if r and r[0])
+    compteurs = _json.loads(brut)[0] if brut else {}
+    return compteurs
 
 
-NUMERO_ENQUETEUR_MAX = 100   # borne de Chk_Numero_Enqueteur_Ta_Vacation_Zone
-
-
-def _numeros_enqueteur_libres(
-    cursor,
-    id_societe_terrain: int | None,
-    date_vacation:      str,
-    id_zone_enquete:    int,
-    combien:            int,
-) -> list[int]:
+def _numeros_enqueteur_libres(cursor, date_vacation: str, id_zone_enquete: int,
+                              combien: int) -> list[int]:
     """
-    Numero_Enqueteur est une étiquette d'emplacement (pas l'identité d'un
-    enquêteur), unique par (Date_Vacation, ID_Societe_Terrain, ID_Zone_Enquete)
-    — contrainte Ak_Vacation_Zone_Enqueteur, bornée à 1..NUMERO_ENQUETEUR_MAX.
+    Numéros d'emplacement libres pour une (date, zone), bornés à 1..100 par
+    Chk_Numero_Enqueteur_Ta_Vacation_Zone.
 
-    Prc_Vacation_Zone_Insert s'en sert comme clé de rattachement : un numéro
-    déjà pris renvoie sur la vacation existante au lieu d'en créer une nouvelle,
-    et ce silencieusement. Il faut donc lui fournir des numéros neufs pour
-    obtenir une nouvelle vacation — c'est ce qui rend possible la règle 07 des
-    specs §7.3.3 : « autant de vacations que souhaité pour une zone à une date
-    donnée » (vérifié en base le 2026-09-22).
+    Prc_Vacation_Zone_Insert sait depuis le 2026-09-28 allouer ces numéros
+    elle-même quand on lui passe NULL, mais l'allocation échoue tant qu'aucune
+    vacation n'existe pour la (date, zone) : son `Min()` porte alors sur un
+    ensemble vide et vaut NULL, la boucle `While NULL < 100` ne s'exécute jamais
+    et la procédure rejette la ligne. Reproduit le 2026-09-28, signalé à
+    Philippe. On fournit donc les numéros explicitement, ce qui fonctionne dans
+    tous les cas, y compris une fois son correctif livré.
 
-    Pour un compte IFOP, id_societe_terrain vaut None et la SP résout la société
-    elle-même : on prend alors les numéros libres toutes sociétés confondues,
-    qui le restent donc quelle que soit celle retenue.
+    Portée (date, zone) sans la société, comme le fait sa procédure : un numéro
+    libre toutes sociétés confondues l'est quelle que soit celle retenue, ce qui
+    reste valable même si les index uniques incluent la société.
     """
-    sql = ("SELECT Numero_Enqueteur FROM dbo.Vacation_Zone "
-           "WHERE Date_Vacation = ? AND ID_Zone_Enquete = ?")
-    params: list = [date_vacation, id_zone_enquete]
-    if id_societe_terrain is not None:
-        sql += " AND ID_Societe_Terrain = ?"
-        params.append(id_societe_terrain)
-    cursor.execute(sql, params)
+    cursor.execute(
+        "SELECT Numero_Enqueteur FROM dbo.Vacation_Zone "
+        "WHERE Date_Vacation = ? AND ID_Zone_Enquete = ?",
+        (date_vacation, id_zone_enquete)
+    )
     pris = {row[0] for row in cursor.fetchall()}
-
-    libres = [n for n in range(1, NUMERO_ENQUETEUR_MAX + 1) if n not in pris][:combien]
+    libres = [n for n in range(1, 101) if n not in pris][:combien]
     if len(libres) < combien:
         raise ValueError(
             f"Plus d'emplacement disponible pour cette zone au {date_vacation} "
-            f"(limite de {NUMERO_ENQUETEUR_MAX} emplacements atteinte)."
+            "(100 emplacements au maximum)."
         )
     return libres
 
@@ -1175,47 +1147,56 @@ def create_vacations_zone(
     lignes:             list[dict],
 ) -> tuple[bool, str]:
     """
-    Prc_Vacation_Zone_Insert(@pJSON, @pVacation_Rattrapage_Only=0, @pSimulation=0)
+    Prc_Vacation_Zone_Insert(@pJSON, @pVacation_Rattrapage_Only=0, @pSimulation=0,
+                             @pJsonOutput OUTPUT)
 
     lignes : [{'date_vacation': 'YYYY-MM-DD', 'id_zone_enquete': int,
                'nombre_enqueteurs': 1|2}, ...]
 
     Le nombre d'emplacements enquêteur (1 ou 2) est choisi par l'utilisateur à
-    la création (specs v1.2 §7.3.3, menu "Nombre d'enquêteurs" ajouté le
-    21/08/2026). Le choix de QUI affecter se fait ensuite sur l'écran
-    d'affectation.
+    la création (specs v1.2 §7.3.3). Le choix de QUI affecter se fait ensuite
+    sur l'écran d'affectation.
 
-    Un appel par ligne, avec des Numero_Enqueteur neufs fournis par
-    _numeros_enqueteur_libres (voir là-bas pourquoi ils ne peuvent pas être
-    fixes). Les lignes d'un même lot partagent la transaction : chacune voit
-    donc les numéros consommés par les précédentes, y compris sur la même
-    (date, zone).
+    Contrat livré par Philippe le 2026-09-28 : on transmet Nbre_Enqueteurs et on
+    laisse Numero_Enqueteur_1 et _2 à NULL — la procédure alloue elle-même ces
+    numéros d'emplacement. C'est atomique, contrairement à un calcul applicatif,
+    et ça rend possible la règle 07 du §7.3.3 (« autant de vacations que
+    souhaité pour une zone à une date donnée »).
+
+    Un appel par ligne, pour pouvoir rattacher une erreur à la ligne fautive.
+    Les lignes d'un même lot partagent la transaction.
 
     Renvoie (True, '') en cas de succès, (False, message) sinon — le message est
     déjà en français (RAISERROR côté SP), affichable directement à l'utilisateur.
     En cas d'échec, rien n'est enregistré : le commit n'a lieu qu'à la fin.
     """
     try:
+        creations = 0
         with get_connection() as conn:
             cursor = conn.cursor()
             for ligne in lignes:
                 date_vacation = ligne['date_vacation']
                 id_zone       = int(ligne['id_zone_enquete'])
                 nb_enqueteurs = int(ligne.get('nombre_enqueteurs', 1))
-
                 numeros = _numeros_enqueteur_libres(
-                    cursor, id_societe_terrain, date_vacation, id_zone, nb_enqueteurs)
+                    cursor, date_vacation, id_zone, nb_enqueteurs)
 
-                _insert_vacation_zone_payload(cursor, [{
+                compteurs = _insert_vacation_zone_payload(cursor, [{
                     'ID_Societe_Terrain':           id_societe_terrain,
                     'Date_Vacation':                date_vacation.replace('-', ''),
                     'ID_Zone_Enquete':              id_zone,
+                    'Nbre_Enqueteurs':              nb_enqueteurs,
                     'Numero_Enqueteur_1':           numeros[0],
                     'Numero_Enqueteur_2':           numeros[1] if nb_enqueteurs == 2 else None,
                     'Nombre_Interviews_A_Faire':    None,
                     'ID_Vacation_Zone_A_Rattraper': None,
                 }])
+                creations += compteurs.get('Creation') or 0
             conn.commit()
+
+        if creations == 0:
+            return False, ("Aucune vacation n'a été créée. Elles existent "
+                           "peut-être déjà pour ces dates et ces zones.")
         return True, ''
     except ValueError as exc:
         return False, str(exc)
