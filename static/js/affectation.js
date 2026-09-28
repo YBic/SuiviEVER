@@ -336,7 +336,18 @@ $(function () {
         $menu.remove();
         return;
       }
-      resp.data.forEach(function (item) {
+      // Zones : les specs (§7.3, règles d'affectation) demandent que les
+      // enquêteurs déjà pris à cette date n'apparaissent pas dans le menu.
+      // ft_EVER_Liste_Enqueteur_Pour_Affectation_Zone les renvoie quand même,
+      // signalés par Affecte_Vacation — on filtre donc ici, en conservant
+      // l'occupant actuel du créneau, sans quoi le menu ne pourrait pas
+      // afficher la valeur en cours. Côté aéroport la convention historique
+      // est maintenue : ils restent proposés, marqués d'une étoile.
+      const candidats = vType === 'ZONE'
+        ? resp.data.filter(e => !e.Affecte_Vacation || e.Id_Personne === idPers)
+        : resp.data;
+
+      candidats.forEach(function (item) {
         const star = item.Affecte_Vacation
           ? ' <small class="text-warning" title="Déjà affecté à cet horaire">★</small>'
           : '';
@@ -344,7 +355,7 @@ $(function () {
           `<div class="dropdown-item small py-1" data-id="${item.Id_Personne}">${escHtml(item.Libelle_Enqueteur)}${star}</div>`
         );
       });
-      const current = idPers ? resp.data.find(e => e.Id_Personne === idPers) : null;
+      const current = idPers ? candidats.find(e => e.Id_Personne === idPers) : null;
       $input.val(current ? current.Libelle_Enqueteur : '').attr('placeholder', 'Non affecté');
       $td.data('sel-id', idPers || null);
     })
