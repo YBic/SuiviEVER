@@ -149,5 +149,10 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script>
+  // Superviseurs : lecture seule sur l'affectation (specs §4.8).
+  const CAN_MODIFY_AFFECTATION = {{ can_affectation_modifier|yesno:"true,false" }};
+</script>
+<script src="{% static 'js/enq_dropdown.js' %}"></script>
 <script src="{% static 'js/vacations_zone.js' %}"></script>
 {% endblock %}

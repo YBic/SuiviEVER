@@ -5,10 +5,11 @@
  *   - détail    : ft_EVER_Tableau_Zone_Site_Chef_Equipe (réutilisée du suivi zones)
  *   - création  : Prc_Vacation_Zone_Insert (déjà livrée le 18/08 par Philippe)
  *
- * L'affectation des enquêteurs (menus Enquêteur 1 / Enquêteur 2, §7.3.1) n'est
- * PAS encore câblée ici : elle nécessite la TVF des enquêteurs éligibles avec
- * les 3 exclusions du §7.3.4 (règle 04), pas encore livrée par Philippe.
- * Cet écran couvre pour l'instant : visualisation + création.
+ * Affectation des enquêteurs : câblée ici depuis le 2026-09-29, conformément à
+ * la règle 05 (« Lors du clic sur une ligne, la fonctionnalité affectation est
+ * activée »). Elle s'appuie sur ft_EVER_Liste_Enqueteur_Pour_Affectation_Zone,
+ * livrée par Philippe le 23/09. Le menu lui-même est partagé avec l'écran
+ * Affectation : voir static/js/enq_dropdown.js.
  */
 $(function () {
 
@@ -19,11 +20,25 @@ $(function () {
   // de Nicolas sur "Dates Sélection", §7.3.1) — l'init globale d'ever.js ne
   // couvre que #filter-date, donc on initialise ici les 2 champs propres à
   // cet écran, avec la même config (calendrier only, anti-autofill).
+  // Les deux bornes sont solidaires : choisir une date de début postérieure à la
+  // date de fin n'affichait aucune ligne, sans rien expliquer à l'écran (remonté
+  // par Nicolas le 29/09). La borne qui deviendrait incohérente suit donc celle
+  // que l'utilisateur vient de choisir.
+  function accorderBornes(selModifie) {
+    const debut = document.querySelector('#filter-date-debut')?._flatpickr;
+    const fin   = document.querySelector('#filter-date-fin')?._flatpickr;
+    if (!debut || !fin || !debut.selectedDates[0] || !fin.selectedDates[0]) return;
+    if (debut.selectedDates[0] <= fin.selectedDates[0]) return;
+    if (selModifie === '#filter-date-debut') fin.setDate(debut.selectedDates[0], false);
+    else                                     debut.setDate(fin.selectedDates[0], false);
+  }
+
   function initDatepicker(sel) {
     if (!document.querySelector(sel)) return;
     flatpickr(sel, {
       locale: 'fr', dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y',
       allowInput: false,
+      onChange() { accorderBornes(sel); },
       onReady(selectedDates, dateStr, instance) {
         if (instance.altInput) {
           instance.altInput.setAttribute('autocomplete', 'off');
@@ -147,17 +162,69 @@ $(function () {
              title="Voir les sites"><i class="bi bi-list-ul"></i></button>`
         : '<span class="text-muted">—</span>';
 
-      $tbody.append(`<tr>
+      const modifiable = CAN_MODIFY_AFFECTATION && r.Affectation_Modifiable;
+
+      $tbody.append(`<tr class="row-vacation${modifiable ? ' assign-row' : ''}"
+          data-vac1="${r.ID_Vacation_Zone_1 || ''}"
+          data-pers1="${r.ID_Personne_1 || ''}"
+          data-vac2="${r.ID_Vacation_Zone_2 || ''}"
+          data-pers2="${r.ID_Personne_2 || ''}"
+          data-modifiable="${modifiable ? '1' : '0'}">
         <td>${escHtml(r.Zone_Enquete || '')}${r.Vacation_Rattrapage ? ' <span class="badge bg-warning text-dark">Rattrapage</span>' : ''}</td>
         <td class="cell-code">${escHtml(r.Numero_Vacation || '')}</td>
-        <td>${r.Libelle_Enqueteur_1 ? escHtml(r.Libelle_Enqueteur_1) : '<span class="text-muted">— à affecter —</span>'}</td>
-        <td>${r.Libelle_Enqueteur_2 ? escHtml(r.Libelle_Enqueteur_2) : '<span class="text-muted">—</span>'}</td>
+        <td class="slot-enq1">${r.Libelle_Enqueteur_1 ? escHtml(r.Libelle_Enqueteur_1) : '<span class="text-muted">— à affecter —</span>'}</td>
+        <td class="slot-enq2">${r.ID_Vacation_Zone_2 ? (r.Libelle_Enqueteur_2 ? escHtml(r.Libelle_Enqueteur_2) : '<span class="text-muted">— à affecter —</span>') : '<span class="text-muted">—</span>'}</td>
         <td class="text-center">${detailBtn}</td>
       </tr>`);
     });
   }
 
   // ---- Détail des sites ----
+  // ── Affectation depuis la liste (specs §7.3, règle 05) ───────────────────
+  // Un clic sur une ligne ouvre les menus de sélection d'enquêteur ; un clic
+  // ailleurs referme et recharge, pour que la liste reflète les affectations
+  // faites (et que les enquêteurs devenus indisponibles disparaissent des menus).
+  let $ligneOuverte = null;
+  let enCoursDeSauvegarde = false;
+
+  function fermerLigne(recharger) {
+    if (!$ligneOuverte) return;
+    $('.ever-enq-dropdown').remove();
+    $ligneOuverte.removeClass('assign-selected');
+    $ligneOuverte = null;
+    if (recharger) loadData();
+  }
+
+  $('#tbody-vacations-zone').on('click', 'tr.assign-row', function (e) {
+    if ($(e.target).closest('button, a, .ever-enq-wrap').length) return;
+    e.stopPropagation();
+    if ($ligneOuverte) { fermerLigne(true); return; }
+
+    const $tr   = $(this).addClass('assign-selected');
+    $ligneOuverte = $tr;
+
+    const vac1  = $tr.data('vac1')  || null;
+    const pers1 = $tr.data('pers1') || null;
+    const vac2  = $tr.data('vac2')  || null;
+    const pers2 = $tr.data('pers2') || null;
+
+    const options = {
+      type:        'ZONE',
+      onSaveStart: function () { enCoursDeSauvegarde = true; },
+      onSaveEnd:   function () { enCoursDeSauvegarde = false; },
+    };
+    if (vac1) EverEnqDropdown.build($tr.find('.slot-enq1'),
+      Object.assign({ idVacation: parseInt(vac1), idPersonne: pers1 ? parseInt(pers1) : null }, options));
+    if (vac2) EverEnqDropdown.build($tr.find('.slot-enq2'),
+      Object.assign({ idVacation: parseInt(vac2), idPersonne: pers2 ? parseInt(pers2) : null }, options));
+  });
+
+  $(document).on('click', function (e) {
+    if (!$ligneOuverte || enCoursDeSauvegarde) return;
+    if ($(e.target).closest('#table-vacations-zone, .ever-filters, .ever-enq-dropdown, .modal').length) return;
+    fermerLigne(true);
+  });
+
   $(document).on('click', '.btn-detail', function () {
     const idVacation = $(this).data('id');
     const num = $(this).data('num');

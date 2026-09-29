@@ -110,5 +110,6 @@
   // Superviseurs : accès en lecture à cet écran (specs §4.8), sans droit de modifier.
   const CAN_MODIFY_AFFECTATION = {{ can_affectation_modifier|yesno:"true,false" }};
 </script>
+<script src="{% static 'js/enq_dropdown.js' %}"></script>
 <script src="{% static 'js/affectation.js' %}"></script>
 {% endblock %}

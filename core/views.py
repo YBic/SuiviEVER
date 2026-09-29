@@ -172,7 +172,14 @@ def enqueteurs(request):
 def vacations_zone(request):
     """Page Vacations Zone / Affectation — Solutions Terrain (v1.1, §7.3)."""
     role = request.session.get('user_role', '')
-    context = {'page': 'vacations_zone', 'today': date.today(), **_nav_rights(role)}
+    context = {
+        'page':                     'vacations_zone',
+        'today':                    date.today(),
+        # L'affectation se fait aussi depuis cette liste (§7.3, règle 05) : même
+        # droit que sur l'écran Affectation.
+        'can_affectation_modifier': has_right(role, 'affectation'),
+        **_nav_rights(role),
+    }
     return render(request, 'core/vacations_zone.html', context)
 
 
@@ -570,6 +577,30 @@ def api_enqueteur_terrain_create(request):
         return JsonResponse({'status': 'error', 'message': 'Informations manquantes : le nom et le prénom sont obligatoires.'}, status=400)
 
     ok, message = db.create_enqueteur_terrain(id_societe_terrain=2, nom=nom, prenom=prenom)
+    if ok:
+        return JsonResponse({'status': 'ok'})
+    return JsonResponse({'status': 'error', 'message': message}, status=400)
+
+
+
+@login_required
+@require_POST
+def api_enqueteur_terrain_voxco(request):
+    """
+    Coche / décoche la case Voxco d'un enquêteur (specs §7.2.4 point 7).
+    Même droit que la création d'enquêteur.
+    """
+    if not has_right(request.session.get('user_role', ''), 'enqueteurs'):
+        return JsonResponse({'status': 'error', 'message': 'Accès refusé'}, status=403)
+
+    try:
+        body = json.loads(request.body)
+        id_enqueteur = int(body['id_enqueteur'])
+        actif        = bool(body['actif'])
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return JsonResponse({'status': 'error', 'message': 'Paramètres invalides'}, status=400)
+
+    ok, message = db.set_voxco_enqueteur_terrain(id_enqueteur, actif)
     if ok:
         return JsonResponse({'status': 'ok'})
     return JsonResponse({'status': 'error', 'message': message}, status=400)

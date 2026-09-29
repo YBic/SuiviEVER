@@ -4,10 +4,11 @@
  *   - liste   : ft_Enqueteur_Terrain_Non_IFOP
  *   - création : Prc_Enqueteur_Terrain_Non_IFOP_Upsert
  *
- * La colonne "Voxco" est un statut réel (Voxco_User_Creation /
- * Voxco_User_Date_Creation), affiché en LECTURE SEULE : la procédure de
- * création n'a aucun paramètre pour l'écrire depuis l'appli — probablement
- * alimentée par une synchronisation externe (décision du 2026-08-25).
+ * La colonne "Voxco" (Voxco_User_Creation / Voxco_User_Date_Creation) est
+ * modifiable depuis le 2026-09-29 : elle s'écrit via
+ * Prc_Enqueteur_Terrain_Non_IFOP_Update_Voxco_Creation, livrée par Philippe le
+ * 26/08 et restée inutilisée. Nicolas avait confirmé le 20/08 (§7.2.4 point 7)
+ * qu'il fallait mémoriser l'état coché / décoché.
  */
 $(function () {
 
@@ -85,9 +86,12 @@ $(function () {
       const blocage = r.Date_Blocage_IFOP_Affectation
         ? `<span class="text-danger">${fmtDate(r.Date_Blocage_IFOP_Affectation)}${r.Motif_Blocage_IFOP_Affectation ? ' — ' + escHtml(r.Motif_Blocage_IFOP_Affectation) : ''}</span>`
         : '<span class="text-muted">—</span>';
-      const voxco = r.Voxco_User_Creation
-        ? `<i class="bi bi-check-circle-fill text-success" title="Compte Voxco créé${r.Voxco_User_Date_Creation ? ' le ' + fmtDate(r.Voxco_User_Date_Creation) : ''}"></i>`
-        : '<i class="bi bi-dash-circle text-muted" title="Compte Voxco non créé"></i>';
+      const titreVoxco = r.Voxco_User_Creation && r.Voxco_User_Date_Creation
+        ? `Compte Voxco créé le ${fmtDate(r.Voxco_User_Date_Creation)}`
+        : 'Compte Voxco';
+      const voxco = `<input type="checkbox" class="form-check-input chk-voxco"
+          data-id="${r.ID_Enqueteur_Terrain}" ${r.Voxco_User_Creation ? 'checked' : ''}
+          title="${titreVoxco}">`;
       $tbody.append(`<tr>
         <td class="cell-code">${escHtml(r.Matricule_Enqueteur_Terrain)}</td>
         <td>${escHtml(r.Nom)}</td>
@@ -99,6 +103,32 @@ $(function () {
       </tr>`);
     });
   }
+
+  // ---- Case Voxco ----
+  $(document).on('change', '.chk-voxco', function () {
+    const $chk  = $(this);
+    const actif = $chk.is(':checked');
+    $chk.prop('disabled', true);
+
+    ajaxPost('/api/enqueteurs-terrain/voxco/', {
+      id_enqueteur: parseInt($chk.data('id')),
+      actif:        actif,
+    })
+    .done(function (resp) {
+      if (resp.status !== 'ok') {
+        $chk.prop('checked', !actif);          // on remet l'état précédent
+        alert(resp.message || 'Erreur lors de la mise à jour Voxco.');
+      }
+    })
+    .fail(function (xhr) {
+      $chk.prop('checked', !actif);
+      const msg = xhr.responseJSON && xhr.responseJSON.message
+        ? xhr.responseJSON.message
+        : 'Erreur réseau lors de la mise à jour Voxco.';
+      alert(msg);
+    })
+    .always(function () { $chk.prop('disabled', false); });
+  });
 
   function showError(msg) {
     $('#tbody-enqueteurs').html(

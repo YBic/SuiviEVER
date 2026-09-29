@@ -38,6 +38,7 @@ urlpatterns = [
     # API - v1.1 : Enquêteurs (§7.2)
     path('api/enqueteurs-terrain/', views.api_enqueteurs_terrain, name='api_enqueteurs_terrain'),
     path('api/enqueteurs-terrain/create/', views.api_enqueteur_terrain_create, name='api_enqueteur_terrain_create'),
+    path('api/enqueteurs-terrain/voxco/', views.api_enqueteur_terrain_voxco, name='api_enqueteur_terrain_voxco'),
 
     # API - v1.1 : Vacations Zone (§7.3)
     path('api/zones-enquete/', views.api_zones_enquete, name='api_zones_enquete'),

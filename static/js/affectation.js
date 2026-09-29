@@ -306,116 +306,15 @@ $(function () {
     closeAndReload();
   });
 
-  // ── Dropdown personnalisé par slot ───────────────────────────────────────
-  // Le $menu est attaché au <body> avec position:fixed pour échapper aux
-  // overflow:auto des conteneurs de tableau (sinon la liste est coupée).
+  // ── Dropdown de sélection d'enquêteur ────────────────────────────────────
+  // Logique partagée avec l'écran Vacations Zone : voir static/js/enq_dropdown.js
   function buildEnqDropdown($td, idVacEnq, idPers, vType) {
-    $td.html(`
-      <div class="ever-enq-wrap">
-        <div class="input-group input-group-sm">
-          <input type="text" class="form-control ever-enq-input" readonly
-                 placeholder="Chargement…" style="font-size:12px;min-width:130px">
-          <span class="input-group-text ever-enq-caret" style="cursor:pointer">
-            <i class="bi bi-caret-down-fill"></i>
-          </span>
-        </div>
-      </div>`);
-
-    const $wrap  = $td.find('.ever-enq-wrap');
-    const $input = $td.find('.ever-enq-input');
-
-    // Menu attaché au body pour ne pas être coupé par overflow du tableau
-    const $menu = $('<div class="ever-enq-dropdown"></div>')
-      .append('<div class="dropdown-item small py-1" data-id="">— Non affecté —</div>')
-      .appendTo('body');
-
-    $.get('/api/affectation/enqueteurs-pour-vacation/', { id_vacation: idVacEnq, type: vType })
-    .done(function (resp) {
-      if (!resp || resp.status !== 'ok') {
-        $td.html('<span class="text-danger small">Erreur chargement</span>');
-        $menu.remove();
-        return;
-      }
-      // Zones : les specs (§7.3, règles d'affectation) demandent que les
-      // enquêteurs déjà pris à cette date n'apparaissent pas dans le menu.
-      // ft_EVER_Liste_Enqueteur_Pour_Affectation_Zone les renvoie quand même,
-      // signalés par Affecte_Vacation — on filtre donc ici, en conservant
-      // l'occupant actuel du créneau, sans quoi le menu ne pourrait pas
-      // afficher la valeur en cours. Côté aéroport la convention historique
-      // est maintenue : ils restent proposés, marqués d'une étoile.
-      const candidats = vType === 'ZONE'
-        ? resp.data.filter(e => !e.Affecte_Vacation || e.Id_Personne === idPers)
-        : resp.data;
-
-      candidats.forEach(function (item) {
-        const star = item.Affecte_Vacation
-          ? ' <small class="text-warning" title="Déjà affecté à cet horaire">★</small>'
-          : '';
-        $menu.append(
-          `<div class="dropdown-item small py-1" data-id="${item.Id_Personne}">${escHtml(item.Libelle_Enqueteur)}${star}</div>`
-        );
-      });
-      const current = idPers ? candidats.find(e => e.Id_Personne === idPers) : null;
-      $input.val(current ? current.Libelle_Enqueteur : '').attr('placeholder', 'Non affecté');
-      $td.data('sel-id', idPers || null);
-    })
-    .fail(function () {
-      $td.html('<span class="text-danger small">Erreur réseau</span>');
-      $menu.remove();
-    });
-
-    // Toggle : positionne le menu en fixed sous le groupe input
-    $wrap.find('.input-group').on('click', function (e) {
-      e.stopPropagation();
-      $('.ever-enq-dropdown').not($menu).hide();
-      const rect = this.getBoundingClientRect();
-      $menu.css({
-        top:      rect.bottom + 2,
-        left:     rect.left,
-        minWidth: rect.width,
-        display:  $menu.is(':visible') ? 'none' : 'block',
-      });
-    });
-
-    // Sélection d'un item
-    $menu.on('click', '.dropdown-item', function (e) {
-      e.stopPropagation();
-      const newId   = $(this).data('id') || null;
-      const newText = $(this).text().replace('★', '').trim();
-      $menu.hide();
-      if ($td.data('sel-id') == newId) return;
-      setEnqueteur(idVacEnq, newId, newText, $td);
-    });
-  }
-
-  // Fermeture des dropdowns au clic global
-  $(document).on('click', function () {
-    $('.ever-enq-dropdown').hide();
-  });
-
-  // ── Sauvegarde affectation ─────────────────────────────────────────────────
-  function setEnqueteur(idVacEnq, idPersonne, text, $td) {
-    isSavingAffect = true;
-    $('body').css('cursor', 'wait');
-
-    const realId = idPersonne ? parseInt(idPersonne) : null;
-    const type   = $selectedRow ? ($selectedRow.data('type') || 'AEROPORT') : 'AEROPORT';
-
-    ajaxPost('/api/affectation/set/', { id_vacation: idVacEnq, id_personne: realId, type })
-    .done(function (resp) {
-      if (resp.status !== 'ok') {
-        alert('Erreur affectation : ' + (resp.message || ''));
-      } else {
-        $td.find('.ever-enq-input').val(text);
-        $td.data('sel-id', realId);
-      }
-    })
-    .fail(function () {
-      alert('Erreur réseau lors de l\'affectation.');
-    })
-    .always(function () {
-      isSavingAffect = false;
-      $('body').css('cursor', 'default');
+    EverEnqDropdown.build($td, {
+      idVacation:  idVacEnq,
+      idPersonne:  idPers,
+      type:        vType,
+      onSaveStart: function () { isSavingAffect = true; },
+      onSaveEnd:   function () { isSavingAffect = false; },
     });
   }
 

@@ -1016,6 +1016,52 @@ def create_enqueteur_terrain(id_societe_terrain: int, nom: str, prenom: str) -> 
         return False, _extract_sql_message(exc)
 
 
+
+def set_voxco_enqueteur_terrain(
+    id_enqueteur_terrain: int,
+    actif:                bool,
+    id_societe_terrain:   int = 2,
+) -> tuple[bool, str]:
+    """
+    Prc_Enqueteur_Terrain_Non_IFOP_Update_Voxco_Creation(
+        @pID_Societe_Terrain, @pID_Enqueteur_Terrain, @pMatricule_Enqueteur_Terrain,
+        @pVoxco_User_Insert bit, @pModeExtranet bit, @pJsonOutput OUTPUT)
+
+    Écrit l'état de la case Voxco (§7.2.4 point 7, Nicolas a confirmé le 20/08
+    qu'il faut mémoriser l'état coché/décoché). La procédure existe depuis le
+    26/08 sur les deux bases ; l'écran l'affichait en lecture seule faute de
+    l'avoir repérée.
+
+    Le matricule est laissé à NULL : l'identifiant suffit, et la procédure
+    contrôle leur cohérence quand les deux sont fournis.
+    """
+    import json as _json
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                DECLARE @out NVARCHAR(MAX);
+                EXEC dbo.Prc_Enqueteur_Terrain_Non_IFOP_Update_Voxco_Creation
+                    @pID_Societe_Terrain=?, @pID_Enqueteur_Terrain=?,
+                    @pMatricule_Enqueteur_Terrain=NULL,
+                    @pVoxco_User_Insert=?, @pModeExtranet=1, @pJsonOutput=@out OUTPUT;
+                SELECT @out;
+                """,
+                (id_societe_terrain, id_enqueteur_terrain, 1 if actif else 0)
+            )
+            row = cursor.fetchone()
+            conn.commit()
+
+        resultat = _json.loads(row[0])[0] if row and row[0] else {}
+        if resultat.get('ErrorNumber', 0) != 0:
+            return False, resultat.get('ErrorMessage', 'Erreur inconnue')
+        return True, ''
+    except pyodbc.Error as exc:
+        logger.error("set_voxco_enqueteur_terrain failed: %s", exc)
+        return False, _extract_sql_message(exc)
+
+
 # ---------------------------------------------------------------------------
 # v1.1 — Vacations Zone (§7.3) — Solutions Terrain
 # ---------------------------------------------------------------------------
@@ -1061,6 +1107,11 @@ def get_vacations_zone(
         result.append({
             'ID_Vacation_Zone_1':      r.get('ID_Vacation_Zone_1'),
             'ID_Vacation_Zone_2':      r.get('ID_Vacation_Zone_2'),
+            # Occupant de chaque emplacement + verrou de modification : l'écran
+            # permet d'affecter directement depuis la liste (specs §7.3, règle 05).
+            'ID_Personne_1':           r.get('ID_Enqueteur_1'),
+            'ID_Personne_2':           r.get('ID_Enqueteur_2'),
+            'Affectation_Modifiable':  bool(r.get('Affectation_Modifiable')),
             'ID_Zone_Enquete':         r.get('ID_Zone_Enquete'),
             'Zone_Enquete':            r.get('Zone_Enquete') or '',
             'Date_Vacation':           str(date_v) if date_v else '',
