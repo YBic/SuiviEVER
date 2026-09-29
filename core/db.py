@@ -43,6 +43,25 @@ def _extract_sql_message(exc: pyodbc.Error) -> str:
     return "Une erreur technique est survenue lors de l'enregistrement."
 
 
+def _message_json_output(resultat: dict) -> str:
+    """
+    Message d'erreur affichable à partir du @pJsonOutput d'une procédure
+    ([{"ErrorNumber":n,"ErrorMessage":"..."}]).
+
+    Même règle que _extract_sql_message : seuls les numéros >= 50000 sont des
+    messages applicatifs écrits pour l'utilisateur. En dessous, c'est une erreur
+    système dont le texte expose des noms de base, de table ou de contrainte —
+    la fuite d'informations techniques relevée par l'audit 2026. On journalise
+    le détail et on renvoie un message générique.
+    """
+    numero  = resultat.get('ErrorNumber') or 0
+    message = (resultat.get('ErrorMessage') or '').strip()
+    if numero >= _SQL_USER_ERROR_MIN and message:
+        return message
+    logger.error('Erreur SQL %s remontée par une procédure : %s', numero, message)
+    return "Une erreur technique est survenue lors de l'enregistrement."
+
+
 def _rows_to_dicts(cursor) -> list[dict]:
     """Convertit les lignes d'un curseur pyodbc en liste de dicts."""
     columns = [col[0] for col in cursor.description]
@@ -764,6 +783,12 @@ def get_vacations_affectation_hors_aeroport(
             'Nbre_Interviews_Valides':  int(r.get('Nbre_Interviews_Realisees_Valides') or 0),
             'ID_Personne_1':            r.get('ID_Enqueteur_1'),
             'ID_Personne_2':            r.get('ID_Enqueteur_2'),
+            # Libellés indispensables à l'affichage : sans eux la colonne
+            # Enquêteur restait sur « Non affecté » même une fois l'affectation
+            # enregistrée (remonté par Nicolas le 29/09). Le pendant aéroport les
+            # mappait déjà ; l'oubli ne concernait que les vacations zone.
+            'Libelle_Enqueteur_1':      r.get('Enqueteur_1') or '',
+            'Libelle_Enqueteur_2':      r.get('Enqueteur_2') or '',
             'Commentaire_Avant':        r.get('Commentaire_Avant_Vacation'),
             'Commentaire_Apres':        r.get('Commentaire_Apres_Vacation'),
             'Affectation_Modifiable':   bool(r.get('Affectation_Modifiable', False)),
@@ -828,7 +853,7 @@ def set_affectation_hors_aeroport(
                 data = _json.loads(json_str)
                 err = data[0] if data else {}
                 if err.get('ErrorNumber', 0) != 0:
-                    return False, err.get('ErrorMessage', 'Erreur inconnue')
+                    return False, _message_json_output(err)
             conn.commit()
         return True, ''
     except pyodbc.Error as exc:
@@ -994,6 +1019,13 @@ def create_enqueteur_terrain(id_societe_terrain: int, nom: str, prenom: str) -> 
 
     try:
         with get_connection() as conn:
+            # La procédure ouvre et referme sa propre transaction. Si on l'appelle
+            # à l'intérieur de la nôtre, son ROLLBACK ramène @@TRANCOUNT à 0 et
+            # SQL Server lève l'erreur 266 (« nombre d'instructions BEGIN et COMMIT
+            # différent »), qui écrase le message métier : l'utilisateur ne voyait
+            # plus qu'un « erreur technique » générique. En autocommit, sa
+            # transaction fait foi et son message nous parvient via @pJsonOutput.
+            conn.autocommit = True
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -1005,11 +1037,10 @@ def create_enqueteur_terrain(id_societe_terrain: int, nom: str, prenom: str) -> 
                 (id_societe_terrain, _json.dumps(payload))
             )
             row = cursor.fetchone()
-            conn.commit()
 
         result = _json.loads(row[0])[0] if row and row[0] else {}
         if result.get('ErrorNumber', 0) != 0:
-            return False, result.get('ErrorMessage', 'Erreur inconnue')
+            return False, _message_json_output(result)
         return True, ''
     except pyodbc.Error as exc:
         logger.error("create_enqueteur_terrain failed: %s", exc)
@@ -1055,7 +1086,7 @@ def set_voxco_enqueteur_terrain(
 
         resultat = _json.loads(row[0])[0] if row and row[0] else {}
         if resultat.get('ErrorNumber', 0) != 0:
-            return False, resultat.get('ErrorMessage', 'Erreur inconnue')
+            return False, _message_json_output(resultat)
         return True, ''
     except pyodbc.Error as exc:
         logger.error("set_voxco_enqueteur_terrain failed: %s", exc)
