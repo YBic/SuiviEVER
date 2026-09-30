@@ -75,6 +75,11 @@ window.EverEnqDropdown = (function () {
         ? resp.data.filter(e => !e.Affecte_Vacation || e.Id_Personne === idPersonne)
         : resp.data;
 
+      // Tri par nom : le libellé est « Matricule - NOM Prénom », on trie donc
+      // sur ce qui suit le premier « - » et non sur le matricule.
+      const nomDe = e => { const l = e.Libelle_Enqueteur || ''; const i = l.indexOf(' - '); return i >= 0 ? l.slice(i + 3) : l; };
+      candidats.sort((a, b) => nomDe(a).localeCompare(nomDe(b), 'fr', { sensitivity: 'base' }));
+
       candidats.forEach(function (item) {
         const star = item.Affecte_Vacation
           ? ' <small class="text-warning" title="Déjà affecté à cet horaire">★</small>'

@@ -81,6 +81,11 @@ $(function () {
       $tbody.append('<tr><td colspan="7" class="text-center text-muted py-4">Aucun enquêteur actif.</td></tr>');
       return;
     }
+    // Tri alphabétique sur le nom (puis le prénom), insensible aux accents et à la casse.
+    rows = rows.slice().sort(function (a, b) {
+      return (a.Nom || '').localeCompare(b.Nom || '', 'fr', { sensitivity: 'base' })
+          || (a.Prenom || '').localeCompare(b.Prenom || '', 'fr', { sensitivity: 'base' });
+    });
     rows.forEach(function (r) {
       // Blocage IFOP : affiché seulement s'il est renseigné (géré par Philippe en base).
       const blocage = r.Date_Blocage_IFOP_Affectation

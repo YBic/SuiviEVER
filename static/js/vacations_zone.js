@@ -151,7 +151,7 @@ $(function () {
     $('#panel-detail-vacation').addClass('d-none');
 
     if (!rows.length) {
-      $tbody.append('<tr><td colspan="5" class="text-center text-muted py-4">Aucune vacation pour ces critères.</td></tr>');
+      $tbody.append('<tr><td colspan="6" class="text-center text-muted py-4">Aucune vacation pour ces critères.</td></tr>');
       return;
     }
 
@@ -170,6 +170,7 @@ $(function () {
           data-vac2="${r.ID_Vacation_Zone_2 || ''}"
           data-pers2="${r.ID_Personne_2 || ''}"
           data-modifiable="${modifiable ? '1' : '0'}">
+        <td class="text-nowrap">${fmtDate(r.Date_Vacation)}</td>
         <td>${escHtml(r.Zone_Enquete || '')}${r.Vacation_Rattrapage ? ' <span class="badge bg-warning text-dark">Rattrapage</span>' : ''}</td>
         <td class="cell-code">${escHtml(r.Numero_Vacation || '')}</td>
         <td class="slot-enq1">${r.Libelle_Enqueteur_1 ? escHtml(r.Libelle_Enqueteur_1) : '<span class="text-muted">— à affecter —</span>'}</td>
@@ -377,7 +378,7 @@ $(function () {
 
   function showError(msg) {
     $('#tbody-vacations-zone').html(
-      `<tr><td colspan="5" class="text-center text-danger py-4">
+      `<tr><td colspan="6" class="text-center text-danger py-4">
         <i class="bi bi-exclamation-triangle me-2"></i>${escHtml(msg)}
       </td></tr>`
     );
