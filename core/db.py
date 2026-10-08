@@ -1065,6 +1065,11 @@ def set_voxco_enqueteur_terrain(
 
     Le matricule est laissé à NULL : l'identifiant suffit, et la procédure
     contrôle leur cohérence quand les deux sont fournis.
+
+    Historique (08/10/2026) : la première version de la procédure appliquait la
+    valeur à TOUS les enquêteurs de la société ; la correction du matin ignorait
+    l'identifiant (réponse « succès », rien d'écrit) ; celle de 11:41 est bonne.
+    D'où la relecture finale : on ne confirme jamais un succès qui n'a rien écrit.
     """
     import json as _json
     try:
@@ -1087,6 +1092,17 @@ def set_voxco_enqueteur_terrain(
         resultat = _json.loads(row[0])[0] if row and row[0] else {}
         if resultat.get('ErrorNumber', 0) != 0:
             return False, _message_json_output(resultat)
+
+        # Relecture : la procédure peut répondre « succès » sans rien écrire.
+        apres = next(
+            (e['Voxco_User_Creation'] for e in get_enqueteurs_terrain(id_societe_terrain)
+             if e['ID_Enqueteur_Terrain'] == id_enqueteur_terrain),
+            None,
+        )
+        if apres is None or bool(apres) != bool(actif):
+            logger.error("set_voxco_enqueteur_terrain: etat non applique id=%s attendu=%s lu=%s",
+                         id_enqueteur_terrain, actif, apres)
+            return False, "La modification n'a pas été enregistrée."
         return True, ''
     except pyodbc.Error as exc:
         logger.error("set_voxco_enqueteur_terrain failed: %s", exc)

@@ -583,7 +583,7 @@ def api_enqueteur_terrain_create(request):
 
 
 
-VOXCO_ECRITURE_ACTIVE = False
+VOXCO_ECRITURE_ACTIVE = True
 
 
 @login_required
@@ -593,9 +593,8 @@ def api_enqueteur_terrain_voxco(request):
     Coche / décoche la case Voxco d'un enquêteur (specs §7.2.4 point 7).
     Même droit que la création d'enquêteur.
 
-    DÉSACTIVÉ le 08/10/2026 : la procédure applique la valeur à tous les
-    enquêteurs de la société, quel que soit l'ID passé. Remettre VOXCO_ECRITURE_ACTIVE
-    à True quand Philippe l'aura corrigée (et retirer `disabled` dans enqueteurs.js).
+    Interrupteur VOXCO_ECRITURE_ACTIVE : coupé le 08/10/2026 le temps que Philippe
+    corrige la procédure (elle modifiait tous les enquêteurs).
     """
     if not has_right(request.session.get('user_role', ''), 'enqueteurs'):
         return JsonResponse({'status': 'error', 'message': 'Accès refusé'}, status=403)

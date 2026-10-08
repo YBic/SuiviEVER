@@ -94,12 +94,9 @@ $(function () {
       const titreVoxco = r.Voxco_User_Creation && r.Voxco_User_Date_Creation
         ? `Compte Voxco créé le ${fmtDate(r.Voxco_User_Date_Creation)}`
         : 'Compte Voxco';
-      // Lecture seule depuis le 08/10/2026 : Prc_Enqueteur_Terrain_Non_IFOP_Update_Voxco_Creation
-      // applique la valeur à TOUS les enquêteurs de la société, quel que soit l'ID passé.
-      // À réactiver (retirer disabled) une fois la procédure corrigée par Philippe.
-      const voxco = `<input type="checkbox" class="form-check-input chk-voxco" disabled
+      const voxco = `<input type="checkbox" class="form-check-input chk-voxco"
           data-id="${r.ID_Enqueteur_Terrain}" ${r.Voxco_User_Creation ? 'checked' : ''}
-          title="${titreVoxco} (modification désactivée temporairement)">`;
+          title="${titreVoxco}">`;
       $tbody.append(`<tr>
         <td class="cell-code">${escHtml(r.Matricule_Enqueteur_Terrain)}</td>
         <td>${escHtml(r.Nom)}</td>
